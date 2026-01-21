@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE SENSOR FUSION - PRO</title>
+    <title>ULTIMATE SENSOR FUSION</title>
     <style>
         :root {
             --bg: #000000;
@@ -23,55 +23,29 @@
         }
         h1 { color: var(--accent); text-align: center; border-bottom: 2px solid var(--accent); padding-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
         
-        /* Style de la Boussole Visuelle */
-        .compass-container {
-            grid-column: 1 / -1;
-            background: var(--card);
-            border: 2px solid var(--accent);
-            border-radius: 8px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 10px;
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.1);
-        }
-
-        .compass-ring {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            border: 2px solid var(--dim);
-            position: relative;
-            transition: transform 0.1s ease-out;
-            background: radial-gradient(circle, #1f2937 0%, #111827 70%);
-        }
-
-        .compass-ring::before {
-            content: 'N';
-            position: absolute;
-            top: 5px; left: 50%;
-            transform: translateX(-50%);
-            color: #ff4757;
-            font-weight: bold;
-            font-size: 16px;
-        }
-
-        .needle {
-            position: absolute;
-            top: 50%; left: 50%;
-            width: 4px; height: 100px;
-            background: linear-gradient(to bottom, #ff4757 50%, var(--accent) 50%);
-            transform: translate(-50%, -50%);
-            border-radius: 4px;
-        }
-
         .dashboard {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
             gap: 8px;
-            margin-top: 10px;
+            margin-top: 20px;
+        }
+
+        /* Style spécifique pour la boussole visuelle */
+        .instrument.boussole-geante {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-around;
+            padding: 20px;
+            min-height: 120px;
+        }
+
+        .compass-visual {
+            width: 100px;
+            height: 100px;
+            position: relative;
+            transition: transform 0.1s linear;
         }
 
         .instrument {
@@ -101,7 +75,6 @@
             border-radius: 4px; cursor: pointer;
             text-transform: uppercase;
             box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
-            margin-bottom: 15px;
         }
 
         #hidden-video { position: fixed; top: -1000px; opacity: 0; pointer-events: none; }
@@ -111,19 +84,25 @@
 
     <h1>Global Sensor Audit</h1>
     <button id="btn-start">INITIALISER TOUS LES CAPTEURS</button>
-    <div id="status-log" style="color: var(--dim); text-align: center; margin-top: 5px; margin-bottom: 10px;">En attente d'activation...</div>
+    <div id="status-log" style="color: var(--dim); text-align: center; margin-top: 5px;">En attente d'activation...</div>
 
-    <div class="dashboard">
-        <div class="compass-container">
-            <div class="label">Orientation Spatiale</div>
-            <div class="compass-ring" id="visual-compass">
-                <div class="needle"></div>
+    <div class="dashboard" id="grid">
+        <div class="instrument boussole-geante active" id="box-compass">
+            <div class="source-tag" id="src-compass">...</div>
+            <div class="compass-visual" id="viz-compass">
+                <svg viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="48" fill="none" stroke="#374151" stroke-width="2"/>
+                    <text x="50" y="15" fill="#ff4757" font-weight="bold" font-size="12" text-anchor="middle">N</text>
+                    <path d="M50 20 L40 50 L50 80 L60 50 Z" fill="#ff4757" />
+                    <path d="M50 50 L40 50 L50 80 L60 50 Z" fill="#00f0ff" opacity="0.5" />
+                </svg>
             </div>
-            <div class="value" id="val-compass" style="margin-top:10px;">--°</div>
-            <div class="unit" id="src-compass">Source: N/A</div>
+            <div style="text-align: right;">
+                <div class="label">Orientation Smartphone</div>
+                <div class="value" id="val-compass">--°</div>
+                <div class="unit">Degrés (Nord)</div>
+            </div>
         </div>
-        
-        <div id="grid-dynamic" style="display: contents;"></div>
     </div>
 
     <video id="hidden-video" autoplay playsinline muted></video>
@@ -133,9 +112,9 @@
 {
     const dataStore = {};
     const uiRefs = {};
-    const gridDynamic = document.getElementById('grid-dynamic');
-    const visualCompass = document.getElementById('visual-compass');
+    const grid = document.getElementById('grid');
     const log = document.getElementById('status-log');
+    const vizCompass = document.getElementById('viz-compass');
 
     const instruments = [
         { id: 'mag', name: "Magnétomètre X/Y/Z", unit: "µTesla", def: "N/A" },
@@ -145,7 +124,7 @@
         { id: 'lux', name: "Luminosité", unit: "Lux", def: "--" },
         { id: 'pressure', name: "Baromètre", unit: "hPa", def: "N/A" },
         { id: 'prox', name: "Proximité", unit: "cm", def: "N/A" },
-        { id: 'gps', name: "Coordonnées GPS", unit: "Lat/Lon", def: "Inactif" },
+        { id: 'gps', name: "Coordonnées GPS", unit: "Lat/Lon", def: "Attente..." },
         { id: 'alt', name: "Altitude GPS", unit: "Mètres", def: "--" },
         { id: 'speed', name: "Vitesse GPS", unit: "km/h", def: "0" },
         { id: 'net_rtt', name: "Ping (RTT)", unit: "ms", def: "--" },
@@ -158,7 +137,10 @@
         { id: 'touch_r', name: "Surface Doigt", unit: "Radius Px", def: "0" }
     ];
 
-    // Génération UI (Sauf boussole déjà présente en HTML)
+    // Initialisation des refs boussole (déjà dans le HTML)
+    uiRefs['compass'] = { val: document.getElementById('val-compass'), src: document.getElementById('src-compass'), box: document.getElementById('box-compass') };
+
+    // Génération du reste de la grille
     instruments.forEach(inst => {
         const div = document.createElement('div');
         div.className = 'instrument';
@@ -168,27 +150,20 @@
             <div class="value" id="val-${inst.id}">${inst.def}</div>
             <div class="unit">${inst.unit}</div>
         `;
-        gridDynamic.appendChild(div);
+        grid.appendChild(div);
         uiRefs[inst.id] = { val: document.getElementById(`val-${inst.id}`), src: document.getElementById(`src-${inst.id}`), box: div };
     });
-
-    // On ajoute manuellement la boussole aux refs
-    uiRefs['compass'] = { 
-        val: document.getElementById('val-compass'), 
-        src: document.getElementById('src-compass'),
-        box: document.querySelector('.compass-container')
-    };
 
     const updateVal = (id, value, source = "API") => {
         if (!uiRefs[id]) return;
         uiRefs[id].val.innerText = value;
-        uiRefs[id].src.innerText = "Source: " + source;
+        uiRefs[id].src.innerText = source;
         uiRefs[id].box.classList.add(source === "CAM" || source === "Sim" ? "simulated" : "active");
         dataStore[id] = true;
     };
 
     const initModernSensors = () => {
-        const configs = [
+        const sensors = [
             { class: 'Magnetometer', id: 'mag', map: s => `${s.x.toFixed(0)}|${s.y.toFixed(0)}|${s.z.toFixed(0)}`, src: "Hard" },
             { class: 'Accelerometer', id: 'acc', map: s => `${s.x.toFixed(1)}|${s.y.toFixed(1)}|${s.z.toFixed(1)}`, src: "Hard" },
             { class: 'Gyroscope', id: 'gyro', map: s => `${s.x.toFixed(1)}|${s.y.toFixed(1)}|${s.z.toFixed(1)}`, src: "Hard" },
@@ -197,7 +172,7 @@
             { class: 'ProximitySensor', id: 'prox', map: s => s.distance, src: "Hard" }
         ];
 
-        configs.forEach(conf => {
+        sensors.forEach(conf => {
             if (conf.class in window) {
                 try {
                     const s = new window[conf.class]({ frequency: 60 });
@@ -213,19 +188,21 @@
                 als.onreading = () => updateVal('lux', als.illuminance, "ALS");
                 als.start();
             } catch(e) { startCameraLuxFallback(); }
-        } else { startCameraLuxFallback(); }
+        } else {
+            startCameraLuxFallback();
+        }
     };
 
     const initLegacyAndSystem = () => {
         const handleOrient = (e) => {
             let heading = 0;
-            let src = "Rel";
+            let src = "N/A";
             if (e.webkitCompassHeading) { heading = e.webkitCompassHeading; src = "iOS"; }
             else if (e.alpha && e.absolute) { heading = 360 - e.alpha; src = "Andr"; }
-            else if (e.alpha) { heading = e.alpha; }
+            else if (e.alpha) { heading = e.alpha; src = "Rel"; }
 
             updateVal('compass', Math.round(heading) + "°", src);
-            visualCompass.style.transform = `rotate(${-heading}deg)`;
+            vizCompass.style.transform = `rotate(${-heading}deg)`;
 
             if (!dataStore['mag']) {
                 updateVal('mag', `${(e.beta||0).toFixed(0)}|${(e.gamma||0).toFixed(0)}|?`, "Sim");
@@ -236,14 +213,14 @@
 
         window.addEventListener('devicemotion', (e) => {
             if (!dataStore['acc']) {
-                const a = e.accelerationIncludingGravity;
-                if(a) updateVal('acc', `${a.x.toFixed(1)}|${a.y.toFixed(1)}|${a.z.toFixed(1)}`, "Evt");
+                const a = e.accelerationIncludingGravity || e.acceleration;
+                if(a) updateVal('acc', `${(a.x||0).toFixed(1)}|${(a.y||0).toFixed(1)}|${(a.z||0).toFixed(1)}`, "Evt");
             }
         });
 
         if ('geolocation' in navigator) {
             navigator.geolocation.watchPosition(p => {
-                updateVal('gps', `${p.coords.latitude.toFixed(4)},${p.coords.longitude.toFixed(4)}`, "GPS");
+                updateVal('gps', `${p.coords.latitude.toFixed(4)}, ${p.coords.longitude.toFixed(4)}`, "GPS");
                 if(p.coords.altitude) updateVal('alt', p.coords.altitude.toFixed(1), "GPS");
                 if(p.coords.speed) updateVal('speed', (p.coords.speed * 3.6).toFixed(1), "GPS");
             }, null, { enableHighAccuracy: true });
@@ -251,19 +228,13 @@
 
         if (navigator.getBattery) {
             navigator.getBattery().then(b => {
-                const up = () => {
-                    updateVal('bat_level', (b.level * 100).toFixed(0), "API");
-                    updateVal('bat_state', b.charging ? "Charge" : "Secteur", "API");
-                };
+                const up = () => { updateVal('bat_level', (b.level * 100).toFixed(0), "API"); updateVal('bat_state', b.charging ? "Charge" : "Secteur", "API"); };
                 b.onlevelchange = up; b.onchargingchange = up; up();
             });
         }
 
         if (navigator.connection) {
-            const upNet = () => {
-                updateVal('net_rtt', navigator.connection.rtt || "?", "Net");
-                updateVal('net_bw', navigator.connection.downlink || "?", "Net");
-            };
+            const upNet = () => { updateVal('net_rtt', navigator.connection.rtt || "?", "Net"); updateVal('net_bw', navigator.connection.downlink || "?", "Net"); };
             navigator.connection.onchange = upNet; upNet();
         }
 
@@ -287,7 +258,7 @@
                     const p = ctx.getImageData(0, 0, 50, 50).data;
                     let sum = 0;
                     for(let i=0; i<p.length; i+=16) { sum += (p[i]*0.299 + p[i+1]*0.587 + p[i+2]*0.114); }
-                    updateVal('lux', Math.round((sum / (p.length / 16)) * 2), "CAM");
+                    updateVal('lux', Math.round((sum / (p.length / 16)) * 2), "CAM"); 
                 }
                 requestAnimationFrame(computeLux);
             };
@@ -302,7 +273,7 @@
         }
         initModernSensors();
         initLegacyAndSystem();
-        log.innerText = "Scanning matériel en cours...";
+        log.innerText = "Audit en cours...";
     };
 }
 </script>
