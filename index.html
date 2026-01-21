@@ -2,222 +2,176 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audit Capteurs - Boucle Temps Réel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Laboratoire de Mesure Hardware</title>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --accent: #38bdf8;
-            --text: #f1f2f6;
-            --success: #4ade80;
-            --fail: #fb7185;
-            --data-color: #a5f3fc;
+            --bg: #020617;
+            --card: #0f172a;
+            --accent: #0ea5e9;
+            --text: #f8fafc;
+            --dim: #64748b;
+            --neon: #22d3ee;
         }
-
         body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background-color: var(--bg-color);
+            background: var(--bg);
             color: var(--text);
+            font-family: 'Monaco', 'Consolas', monospace;
             margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .container { max-width: 600px; width: 100%; }
-
-        h1 { color: var(--accent); font-size: 1.5rem; text-align: center; margin-bottom: 2rem; }
-
-        .sensor-card {
-            background: var(--card-bg);
-            border-radius: 12px;
             padding: 15px;
-            margin-bottom: 12px;
-            border-left: 4px solid #475569;
-            display: flex;
-            flex-direction: column;
+            font-size: 13px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
             gap: 10px;
+            margin-top: 20px;
         }
-
-        .sensor-card.active { border-left-color: var(--success); }
-        .sensor-card.inactive { border-left-color: var(--fail); opacity: 0.7; }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .instrument {
+            background: var(--card);
+            border: 1px solid #1e293b;
+            padding: 10px;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
         }
-
-        .sensor-info h3 { margin: 0; font-size: 1rem; }
-        .sensor-info p { margin: 2px 0 0; font-size: 0.8rem; color: #94a3b8; }
-
-        .data-display {
-            font-family: 'Courier New', monospace;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 8px;
-            border-radius: 6px;
-            color: var(--data-color);
-            font-size: 0.9rem;
-            min-height: 1.2rem;
-            word-break: break-all;
-        }
-
-        .status-badge {
-            font-size: 0.65rem;
-            padding: 3px 8px;
-            border-radius: 10px;
-            text-transform: uppercase;
-            font-weight: bold;
-        }
-        .status-on { background: #166534; color: var(--success); }
-        .status-off { background: #991b1b; color: var(--fail); }
-
-        #btn-scan {
+        .instrument::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 2px; height: 100%;
             background: var(--accent);
-            color: var(--bg-color);
+        }
+        .label { color: var(--dim); font-size: 10px; text-transform: uppercase; margin-bottom: 5px; }
+        .val { color: var(--neon); font-size: 14px; font-weight: bold; min-height: 1.2em; }
+        .unit { font-size: 10px; color: var(--dim); margin-left: 4px; }
+        
+        #btn-init {
+            background: var(--accent);
+            color: white;
             border: none;
             padding: 15px;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
             width: 100%;
-            margin-bottom: 20px;
-            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.4);
+        }
+        .category-title {
+            grid-column: 1 / -1;
+            border-bottom: 1px solid #334155;
+            padding: 10px 0 5px 0;
+            color: var(--accent);
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Hardware Sensor Audit Loop</h1>
-    <button id="btn-scan">ACTIVER LA BOUCLE DE DONNÉES</button>
-    <div id="sensor-list"></div>
-</div>
+    <h2 style="text-align:center; color: var(--accent)">INSTRUMENTATION SYSTÈME RÉCURRENTE</h2>
+    <button id="btn-init">DÉVERROUILLER TOUS LES INSTRUMENTS</button>
+
+    <div class="grid" id="dashboard">
+        </div>
 
 <script>
 {
-    const sensorListContainer = document.getElementById('sensor-list');
-    const scanBtn = document.getElementById('btn-scan');
-    
-    // Stockage centralisé pour la boucle de rafraîchissement
-    const sensorRegistry = {};
+    const db = {}; // Store des données
+    const container = document.getElementById('dashboard');
 
-    const sensorsConfiguration = [
-        { id: 'mag', name: "Magnétomètre", class: "Magnetometer", desc: "Champ magnétique (µT)", units: ["X", "Y", "Z"] },
-        { id: 'acc', name: "Accéléromètre", class: "Accelerometer", desc: "Accélération (m/s²)", units: ["X", "Y", "Z"] },
-        { id: 'gyro', name: "Gyroscope", class: "Gyroscope", desc: "Rotation (rad/s)", units: ["X", "Y", "Z"] },
-        { id: 'light', name: "Luminosité", class: "AmbientLightSensor", desc: "Éclairement (lux)", units: ["Lux"] },
-        { id: 'prox', name: "Proximité", class: "ProximitySensor", desc: "Distance (cm)", units: ["Cm"] },
-        { id: 'grav', name: "Gravité", class: "GravitySensor", desc: "Force G (m/s²)", units: ["X", "Y", "Z"] }
+    const sensorsMap = [
+        { cat: "Environnement", id: "pres", name: "Baromètre", class: "PressureSensor", unit: "hPa" },
+        { cat: "Environnement", id: "light", name: "Luminosité", class: "AmbientLightSensor", unit: "lux" },
+        { cat: "Mouvement", id: "acc", name: "Accéléro", class: "Accelerometer", unit: "m/s²" },
+        { cat: "Mouvement", id: "gyro", name: "Gyroscope", class: "Gyroscope", unit: "rad/s" },
+        { cat: "Mouvement", id: "mag", name: "Magnéto", class: "Magnetometer", unit: "µT" },
+        { cat: "Mouvement", id: "grav", name: "Gravité", class: "GravitySensor", unit: "m/s²" },
+        { cat: "Réseau & Bio", id: "net", name: "Latence (RTT)", unit: "ms" },
+        { cat: "Réseau & Bio", id: "down", name: "Bande Passante", unit: "Mbps" },
+        { cat: "Système", id: "bat", name: "Batterie", unit: "%" },
+        { cat: "Système", id: "temp", name: "Cœurs CPU", unit: "Logical" },
+        { cat: "Toucher", id: "touch", name: "Force Pression", unit: "0-1" }
     ];
 
-    const createSensorCard = (id, name, desc, supported) => {
-        const div = document.createElement('div');
-        div.id = `card-${id}`;
-        div.className = `sensor-card ${supported ? 'active' : 'inactive'}`;
-        div.innerHTML = `
-            <div class="card-header">
-                <div class="sensor-info">
-                    <h3>${name}</h3>
-                    <p>${desc}</p>
-                </div>
-                <span class="status-badge ${supported ? 'status-on' : 'status-off'}">
-                    ${supported ? 'Actif' : 'Indisponible'}
-                </span>
-            </div>
-            <div class="data-display" id="data-${id}">Initialisation...</div>
-        `;
-        return div;
-    };
-
-    // Boucle de récurrence haute performance
-    const refreshLoop = () => {
-        Object.keys(sensorRegistry).forEach(id => {
-            const data = sensorRegistry[id];
-            const el = document.getElementById(`data-${id}`);
-            if (el && data) {
-                el.textContent = data.map(v => 
-                    typeof v === 'number' ? v.toFixed(3) : v
-                ).join(' | ');
+    const createInstruments = () => {
+        let lastCat = "";
+        sensorsMap.forEach(s => {
+            if(s.cat !== lastCat) {
+                const title = document.createElement('div');
+                title.className = "category-title";
+                title.innerText = s.cat;
+                container.appendChild(title);
+                lastCat = s.cat;
             }
+            const div = document.createElement('div');
+            div.className = "instrument";
+            div.innerHTML = `
+                <div class="label">${s.name}</div>
+                <div class="val" id="v-${s.id}">--</div>
+                <div class="unit">${s.unit || ''}</div>
+            `;
+            container.appendChild(div);
         });
-        requestAnimationFrame(refreshLoop);
     };
 
-    const initGenericSensors = () => {
-        sensorsConfiguration.forEach(s => {
-            const isSupported = s.class in window;
-            sensorListContainer.appendChild(createSensorCard(s.id, s.name, s.desc, isSupported));
+    const updateUI = () => {
+        for (const [id, value] of Object.entries(db)) {
+            const el = document.getElementById(`v-${id}`);
+            if (el) el.innerText = value;
+        }
+        requestAnimationFrame(updateUI);
+    };
 
-            if (isSupported) {
+    const initInstruments = async () => {
+        // 1. Capteurs API Générique (Finesse : Fréquence 60Hz)
+        sensorsMap.filter(s => s.class).forEach(s => {
+            if (s.class in window) {
                 try {
                     const sensor = new window[s.class]({ frequency: 60 });
-                    sensor.addEventListener('reading', () => {
-                        if (s.units.length > 1) {
-                            sensorRegistry[s.id] = [sensor.x, sensor.y, sensor.z];
-                        } else if (s.id === 'light') {
-                            sensorRegistry[s.id] = [sensor.illuminance];
-                        } else if (s.id === 'prox') {
-                            sensorRegistry[s.id] = [sensor.distance];
-                        }
-                    });
+                    sensor.onreading = () => {
+                        if (s.id === 'pres') db[s.id] = sensor.pressure.toFixed(2);
+                        else if (s.id === 'light') db[s.id] = sensor.illuminance.toFixed(1);
+                        else db[s.id] = `${sensor.x?.toFixed(1)}, ${sensor.y?.toFixed(1)}, ${sensor.z?.toFixed(1)}`;
+                    };
                     sensor.start();
-                } catch (e) {
-                    sensorRegistry[s.id] = ["Accès refusé"];
-                }
-            } else {
-                document.getElementById(`data-${s.id}`).textContent = "Non supporté";
-            }
+                } catch(e) { db[s.id] = "Bloqué"; }
+            } else { db[s.id] = "N/A"; }
         });
+
+        // 2. Instrument Réseau (Network Information API)
+        if (navigator.connection) {
+            const updateNet = () => {
+                db['net'] = navigator.connection.rtt;
+                db['down'] = navigator.connection.downlink;
+            };
+            navigator.connection.onchange = updateNet;
+            updateNet();
+        }
+
+        // 3. Instrument Batterie
+        if (navigator.getBattery) {
+            const bat = await navigator.getBattery();
+            const upBat = () => db['bat'] = (bat.level * 100).toFixed(0);
+            bat.onlevelchange = upBat;
+            upBat();
+        }
+
+        // 4. Instrumentation CPU
+        db['temp'] = navigator.hardwareConcurrency || "Inconnu";
+
+        // 5. Instrument Toucher (Pression et surface)
+        window.addEventListener('touchmove', (e) => {
+            const t = e.touches[0];
+            db['touch'] = `F:${(t.force || 0).toFixed(2)} | R:${(t.radiusX || 0).toFixed(1)}`;
+        }, {passive: true});
+
+        updateUI();
     };
 
-    const initLegacyAndSpecial = () => {
-        // GPS
-        const geoSupported = 'geolocation' in navigator;
-        sensorListContainer.appendChild(createSensorCard('gps', 'GPS', 'Position', geoSupported));
-        if (geoSupported) {
-            navigator.geolocation.watchPosition(p => {
-                sensorRegistry['gps'] = [p.coords.latitude, p.coords.longitude];
-            });
-        }
-
-        // Boussole Legacy
-        const orientSupported = 'DeviceOrientationEvent' in window;
-        sensorListContainer.appendChild(createSensorCard('orient', 'Boussole (Legacy)', 'A / B / G', orientSupported));
-        if (orientSupported) {
-            window.addEventListener('deviceorientation', e => {
-                if (e.alpha !== null) sensorRegistry['orient'] = [e.alpha, e.beta, e.gamma];
-            });
-        }
-
-        // Batterie
-        if ('getBattery' in navigator) {
-            sensorListContainer.appendChild(createSensorCard('bat', 'Batterie', 'Niveau', true));
-            navigator.getBattery().then(bat => {
-                const up = () => sensorRegistry['bat'] = [`${(bat.level * 100)}%`, bat.charging ? "Charge" : "Secteur"];
-                bat.onlevelchange = up;
-                up();
-            });
-        }
+    document.getElementById('btn-init').onclick = () => {
+        document.getElementById('btn-init').style.display = 'none';
+        createInstruments();
+        initInstruments();
     };
-
-    const startAudit = () => {
-        scanBtn.style.display = 'none';
-        sensorListContainer.innerHTML = '';
-        initGenericSensors();
-        initLegacyAndSpecial();
-        requestAnimationFrame(refreshLoop);
-    };
-
-    scanBtn.addEventListener('click', () => {
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            DeviceOrientationEvent.requestPermission().then(res => { if(res === 'granted') startAudit(); });
-        } else {
-            startAudit();
-        }
-    });
 }
 </script>
 </body>
