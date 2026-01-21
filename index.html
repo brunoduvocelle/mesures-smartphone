@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE SENSOR FUSION</title>
+    <title>ULTIMATE SENSOR FUSION - PRO</title>
     <style>
         :root {
             --bg: #000000;
             --card: #111827;
-            --accent: #00f0ff; /* Cyberpunk Cyan */
+            --accent: #00f0ff;
             --text: #e5e7eb;
             --dim: #6b7280;
             --warn: #facc15;
@@ -23,11 +23,55 @@
         }
         h1 { color: var(--accent); text-align: center; border-bottom: 2px solid var(--accent); padding-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
         
+        /* Style de la Boussole Visuelle */
+        .compass-container {
+            grid-column: 1 / -1;
+            background: var(--card);
+            border: 2px solid var(--accent);
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.1);
+        }
+
+        .compass-ring {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 2px solid var(--dim);
+            position: relative;
+            transition: transform 0.1s ease-out;
+            background: radial-gradient(circle, #1f2937 0%, #111827 70%);
+        }
+
+        .compass-ring::before {
+            content: 'N';
+            position: absolute;
+            top: 5px; left: 50%;
+            transform: translateX(-50%);
+            color: #ff4757;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .needle {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 4px; height: 100px;
+            background: linear-gradient(to bottom, #ff4757 50%, var(--accent) 50%);
+            transform: translate(-50%, -50%);
+            border-radius: 4px;
+        }
+
         .dashboard {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
             gap: 8px;
-            margin-top: 20px;
+            margin-top: 10px;
         }
 
         .instrument {
@@ -57,9 +101,9 @@
             border-radius: 4px; cursor: pointer;
             text-transform: uppercase;
             box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+            margin-bottom: 15px;
         }
 
-        /* Video caché pour le calcul de lumière */
         #hidden-video { position: fixed; top: -1000px; opacity: 0; pointer-events: none; }
     </style>
 </head>
@@ -67,54 +111,54 @@
 
     <h1>Global Sensor Audit</h1>
     <button id="btn-start">INITIALISER TOUS LES CAPTEURS</button>
-    <div id="status-log" style="color: var(--dim); text-align: center; margin-top: 5px;">En attente d'activation...</div>
+    <div id="status-log" style="color: var(--dim); text-align: center; margin-top: 5px; margin-bottom: 10px;">En attente d'activation...</div>
 
-    <div class="dashboard" id="grid"></div>
+    <div class="dashboard">
+        <div class="compass-container">
+            <div class="label">Orientation Spatiale</div>
+            <div class="compass-ring" id="visual-compass">
+                <div class="needle"></div>
+            </div>
+            <div class="value" id="val-compass" style="margin-top:10px;">--°</div>
+            <div class="unit" id="src-compass">Source: N/A</div>
+        </div>
+        
+        <div id="grid-dynamic" style="display: contents;"></div>
+    </div>
 
     <video id="hidden-video" autoplay playsinline muted></video>
     <canvas id="lux-canvas" width="50" height="50" style="display:none;"></canvas>
 
 <script>
 {
-    // --- CONFIGURATION EXHAUSTIVE ---
     const dataStore = {};
     const uiRefs = {};
-    const grid = document.getElementById('grid');
+    const gridDynamic = document.getElementById('grid-dynamic');
+    const visualCompass = document.getElementById('visual-compass');
     const log = document.getElementById('status-log');
 
-    // Définition de tous les instruments possibles
     const instruments = [
-        // ORIENTATION & BOUSSOLE
-        { id: 'compass', name: "Boussole (Nord)", unit: "Degrés (°)", def: "--" },
         { id: 'mag', name: "Magnétomètre X/Y/Z", unit: "µTesla", def: "N/A" },
         { id: 'gyro', name: "Gyroscope", unit: "rad/s", def: "0, 0, 0" },
         { id: 'acc', name: "Accéléromètre", unit: "m/s²", def: "0, 0, 0" },
         { id: 'grav', name: "Gravité", unit: "m/s²", def: "N/A" },
-        
-        // ENVIRONNEMENT
         { id: 'lux', name: "Luminosité", unit: "Lux", def: "--" },
         { id: 'pressure', name: "Baromètre", unit: "hPa", def: "N/A" },
         { id: 'prox', name: "Proximité", unit: "cm", def: "N/A" },
-
-        // LOCALISATION
-        { id: 'gps', name: "Coordonnées GPS", unit: "Lat/Lon", def: "Refusé/Inactif" },
+        { id: 'gps', name: "Coordonnées GPS", unit: "Lat/Lon", def: "Inactif" },
         { id: 'alt', name: "Altitude GPS", unit: "Mètres", def: "--" },
         { id: 'speed', name: "Vitesse GPS", unit: "km/h", def: "0" },
-
-        // SYSTÈME & RÉSEAU
         { id: 'net_rtt', name: "Ping (RTT)", unit: "ms", def: "--" },
         { id: 'net_bw', name: "Bande Passante", unit: "Mbps", def: "--" },
         { id: 'bat_level', name: "Batterie", unit: "%", def: "--" },
         { id: 'bat_state', name: "État Charge", unit: "Statut", def: "--" },
         { id: 'cpu', name: "Cœurs CPU", unit: "Threads", def: navigator.hardwareConcurrency || "?" },
         { id: 'ram', name: "Mémoire RAM", unit: "GiB", def: navigator.deviceMemory || "?" },
-
-        // INTERACTION
         { id: 'touch_f', name: "Pression Doigt", unit: "Force (0-1)", def: "0" },
         { id: 'touch_r', name: "Surface Doigt", unit: "Radius Px", def: "0" }
     ];
 
-    // --- GÉNÉRATION UI ---
+    // Génération UI (Sauf boussole déjà présente en HTML)
     instruments.forEach(inst => {
         const div = document.createElement('div');
         div.className = 'instrument';
@@ -124,22 +168,27 @@
             <div class="value" id="val-${inst.id}">${inst.def}</div>
             <div class="unit">${inst.unit}</div>
         `;
-        grid.appendChild(div);
+        gridDynamic.appendChild(div);
         uiRefs[inst.id] = { val: document.getElementById(`val-${inst.id}`), src: document.getElementById(`src-${inst.id}`), box: div };
     });
+
+    // On ajoute manuellement la boussole aux refs
+    uiRefs['compass'] = { 
+        val: document.getElementById('val-compass'), 
+        src: document.getElementById('src-compass'),
+        box: document.querySelector('.compass-container')
+    };
 
     const updateVal = (id, value, source = "API") => {
         if (!uiRefs[id]) return;
         uiRefs[id].val.innerText = value;
-        uiRefs[id].src.innerText = source;
-        uiRefs[id].box.classList.add(source === "CAM" || source === "Calc" ? "simulated" : "active");
-        dataStore[id] = true; // Mark as alive
+        uiRefs[id].src.innerText = "Source: " + source;
+        uiRefs[id].box.classList.add(source === "CAM" || source === "Sim" ? "simulated" : "active");
+        dataStore[id] = true;
     };
 
-    // --- MOTEUR 1: API CAPTEURS MODERNES (Generic Sensor API) ---
     const initModernSensors = () => {
-        const sensors = [
-            { class: 'AbsoluteOrientationSensor', id: 'compass', map: s => (s.quaternion ? "Actif (Quat)" : "N/A") }, // Simplification, le calcul quaternion->degree est complexe, on utilise le fallback pour l'affichage simple
+        const configs = [
             { class: 'Magnetometer', id: 'mag', map: s => `${s.x.toFixed(0)}|${s.y.toFixed(0)}|${s.z.toFixed(0)}`, src: "Hard" },
             { class: 'Accelerometer', id: 'acc', map: s => `${s.x.toFixed(1)}|${s.y.toFixed(1)}|${s.z.toFixed(1)}`, src: "Hard" },
             { class: 'Gyroscope', id: 'gyro', map: s => `${s.x.toFixed(1)}|${s.y.toFixed(1)}|${s.z.toFixed(1)}`, src: "Hard" },
@@ -148,104 +197,76 @@
             { class: 'ProximitySensor', id: 'prox', map: s => s.distance, src: "Hard" }
         ];
 
-        sensors.forEach(conf => {
+        configs.forEach(conf => {
             if (conf.class in window) {
                 try {
                     const s = new window[conf.class]({ frequency: 60 });
                     s.addEventListener('reading', () => updateVal(conf.id, conf.map(s), conf.src));
                     s.start();
-                } catch(e) { console.log("Modern API Blocked: " + conf.class); }
+                } catch(e) {}
             }
         });
 
-        // Cas spécial Lumière (Modern)
         if ('AmbientLightSensor' in window) {
             try {
                 const als = new AmbientLightSensor();
                 als.onreading = () => updateVal('lux', als.illuminance, "ALS");
                 als.start();
             } catch(e) { startCameraLuxFallback(); }
-        } else {
-            startCameraLuxFallback();
-        }
+        } else { startCameraLuxFallback(); }
     };
 
-    // --- MOTEUR 2: FALLBACKS ET LEGACY (Boussole/Motion/GPS) ---
     const initLegacyAndSystem = () => {
-        // 1. BOUSSOLE & ORIENTATION
         const handleOrient = (e) => {
-            // Boussole
-            let compass = 0;
-            let src = "N/A";
-            
-            if (e.webkitCompassHeading) {
-                compass = e.webkitCompassHeading;
-                src = "iOS";
-            } else if (e.alpha && e.absolute) {
-                compass = 360 - e.alpha;
-                src = "Andr";
-            } else if (e.alpha) {
-                compass = e.alpha; // Valeur relative si absolute pas dispo
-                src = "Rel";
-            }
-            updateVal('compass', Math.round(compass) + "°", src);
+            let heading = 0;
+            let src = "Rel";
+            if (e.webkitCompassHeading) { heading = e.webkitCompassHeading; src = "iOS"; }
+            else if (e.alpha && e.absolute) { heading = 360 - e.alpha; src = "Andr"; }
+            else if (e.alpha) { heading = e.alpha; }
 
-            // Fallback Magnétomètre simulé (si API Magnetometer échoue)
+            updateVal('compass', Math.round(heading) + "°", src);
+            visualCompass.style.transform = `rotate(${-heading}deg)`;
+
             if (!dataStore['mag']) {
                 updateVal('mag', `${(e.beta||0).toFixed(0)}|${(e.gamma||0).toFixed(0)}|?`, "Sim");
             }
         };
-        window.addEventListener('deviceorientationabsolute', handleOrient, true); // Android précis
-        window.addEventListener('deviceorientation', handleOrient, true); // iOS & Standard
+        window.addEventListener('deviceorientationabsolute', handleOrient, true);
+        window.addEventListener('deviceorientation', handleOrient, true);
 
-        // 2. MOUVEMENTS (Fallback Accelerometer)
         window.addEventListener('devicemotion', (e) => {
             if (!dataStore['acc']) {
-                const a = e.accelerationIncludingGravity || e.acceleration;
-                if(a) updateVal('acc', `${(a.x||0).toFixed(1)}|${(a.y||0).toFixed(1)}|${(a.z||0).toFixed(1)}`, "Evt");
-            }
-            if (!dataStore['gyro']) {
-                const r = e.rotationRate;
-                if(r) updateVal('gyro', `${(r.alpha||0).toFixed(1)}|${(r.beta||0).toFixed(1)}|${(r.gamma||0).toFixed(1)}`, "Evt");
+                const a = e.accelerationIncludingGravity;
+                if(a) updateVal('acc', `${a.x.toFixed(1)}|${a.y.toFixed(1)}|${a.z.toFixed(1)}`, "Evt");
             }
         });
 
-        // 3. GPS
         if ('geolocation' in navigator) {
-            navigator.geolocation.watchPosition(
-                p => {
-                    updateVal('gps', `${p.coords.latitude.toFixed(4)}, ${p.coords.longitude.toFixed(4)}`, "GPS");
-                    if(p.coords.altitude) updateVal('alt', p.coords.altitude.toFixed(1), "GPS");
-                    if(p.coords.speed) updateVal('speed', (p.coords.speed * 3.6).toFixed(1), "GPS");
-                },
-                e => updateVal('gps', "Refusé", "ERR"),
-                { enableHighAccuracy: true }
-            );
+            navigator.geolocation.watchPosition(p => {
+                updateVal('gps', `${p.coords.latitude.toFixed(4)},${p.coords.longitude.toFixed(4)}`, "GPS");
+                if(p.coords.altitude) updateVal('alt', p.coords.altitude.toFixed(1), "GPS");
+                if(p.coords.speed) updateVal('speed', (p.coords.speed * 3.6).toFixed(1), "GPS");
+            }, null, { enableHighAccuracy: true });
         }
 
-        // 4. BATTERIE
         if (navigator.getBattery) {
             navigator.getBattery().then(b => {
                 const up = () => {
                     updateVal('bat_level', (b.level * 100).toFixed(0), "API");
                     updateVal('bat_state', b.charging ? "Charge" : "Secteur", "API");
                 };
-                b.onlevelchange = up; b.onchargingchange = up;
-                up();
+                b.onlevelchange = up; b.onchargingchange = up; up();
             });
         }
 
-        // 5. RÉSEAU
         if (navigator.connection) {
             const upNet = () => {
                 updateVal('net_rtt', navigator.connection.rtt || "?", "Net");
                 updateVal('net_bw', navigator.connection.downlink || "?", "Net");
             };
-            navigator.connection.onchange = upNet;
-            upNet();
+            navigator.connection.onchange = upNet; upNet();
         }
 
-        // 6. TOUCHER (Interaction)
         window.addEventListener('touchmove', (e) => {
             const t = e.touches[0];
             updateVal('touch_f', (t.force || 0).toFixed(2), "Tch");
@@ -253,54 +274,35 @@
         }, {passive: true});
     };
 
-    // --- MOTEUR 3: FALLBACK CAMERA POUR LUMIÈRE ---
     const startCameraLuxFallback = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             const video = document.getElementById('hidden-video');
             const canvas = document.getElementById('lux-canvas');
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            
             video.srcObject = stream;
-            
             const computeLux = () => {
                 if (video.readyState === video.HAVE_ENOUGH_DATA) {
                     ctx.drawImage(video, 0, 0, 50, 50);
                     const p = ctx.getImageData(0, 0, 50, 50).data;
                     let sum = 0;
-                    // Sampling simple pour perf
-                    for(let i=0; i<p.length; i+=16) { 
-                        // Luminance relative (R*0.3 + G*0.59 + B*0.11)
-                        sum += (p[i]*0.299 + p[i+1]*0.587 + p[i+2]*0.114);
-                    }
-                    const avg = sum / (p.length / 16);
-                    // Conversion approximative pixel -> lux
-                    updateVal('lux', Math.round(avg * 2), "CAM"); 
+                    for(let i=0; i<p.length; i+=16) { sum += (p[i]*0.299 + p[i+1]*0.587 + p[i+2]*0.114); }
+                    updateVal('lux', Math.round((sum / (p.length / 16)) * 2), "CAM");
                 }
                 requestAnimationFrame(computeLux);
             };
             computeLux();
-        } catch(e) {
-            updateVal('lux', "Cam Refusée", "ERR");
-        }
+        } catch(e) { updateVal('lux', "Bloqué", "ERR"); }
     };
 
-    // --- ACTIVATION ---
     document.getElementById('btn-start').onclick = async () => {
-        const btn = document.getElementById('btn-start');
-        btn.innerText = "AUDIT EN COURS...";
-        btn.style.opacity = "0.5";
-        
-        // 1. Permission Motion (iOS 13+)
+        document.getElementById('btn-start').style.display = 'none';
         if (typeof DeviceOrientationEvent.requestPermission === 'function') {
             try { await DeviceOrientationEvent.requestPermission(); } catch(e) {}
         }
-        
-        // 2. Lancement des moteurs
         initModernSensors();
         initLegacyAndSystem();
-        
-        log.innerText = "Tous les écouteurs sont actifs. Bougez l'appareil.";
+        log.innerText = "Scanning matériel en cours...";
     };
 }
 </script>
