@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE SENSOR FUSION</title>
+    <title>ULTIMATE SENSOR FUSION - BOUSSOLE PRO</title>
     <style>
         :root {
             --bg: #000000;
@@ -13,6 +13,7 @@
             --dim: #6b7280;
             --warn: #facc15;
             --success: #22c55e;
+            --north: #ff4757;
         }
         body {
             background: var(--bg); color: var(--text);
@@ -30,6 +31,7 @@
             margin-top: 20px;
         }
 
+        /* BOUSSOLE RÉVISÉE */
         .instrument.boussole-geante {
             grid-column: 1 / -1;
             display: flex;
@@ -37,15 +39,27 @@
             align-items: center;
             justify-content: space-around;
             padding: 20px;
-            min-height: 120px;
+            min-height: 140px;
+            background: radial-gradient(circle at center, #1e293b 0%, #111827 100%);
         }
 
         .compass-visual {
-            width: 100px;
-            height: 100px;
+            width: 120px;
+            height: 120px;
             position: relative;
-            /* Transition assouplie pour éviter les sauts brusques */
-            transition: transform 0.2s cubic-bezier(0.1, 0.5, 0.1, 1);
+            /* Le lissage est géré par JS pour plus de contrôle que CSS */
+        }
+
+        /* Repère fixe du smartphone (le haut du téléphone) */
+        .phone-marker {
+            position: absolute;
+            top: -10px; left: 50%;
+            transform: translateX(-50%);
+            width: 0; height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 12px solid var(--accent);
+            z-index: 10;
         }
 
         .instrument {
@@ -83,24 +97,30 @@
 <body>
 
     <h1>Global Sensor Audit</h1>
-    <button id="btn-start">INITIALISER TOUS LES CAPTEURS</button>
-    <div id="status-log" style="color: var(--dim); text-align: center; margin-top: 5px;">En attente d'activation...</div>
+    <button id="btn-start">ACTIVER LES INSTRUMENTS</button>
+    <div id="status-log" style="color: var(--dim); text-align: center; margin-top: 5px;">Calibrage requis...</div>
 
     <div class="dashboard" id="grid">
         <div class="instrument boussole-geante active" id="box-compass">
             <div class="source-tag" id="src-compass">...</div>
-            <div class="compass-visual" id="viz-compass">
-                <svg viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="48" fill="none" stroke="#374151" stroke-width="2"/>
-                    <text x="50" y="15" fill="#ff4757" font-weight="bold" font-size="12" text-anchor="middle">N</text>
-                    <path d="M50 20 L40 50 L50 80 L60 50 Z" fill="#ff4757" />
-                    <path d="M50 50 L40 50 L50 80 L60 50 Z" fill="#00f0ff" opacity="0.5" />
-                </svg>
+            <div style="position: relative;">
+                <div class="phone-marker"></div>
+                <div class="compass-visual" id="viz-compass">
+                    <svg viewBox="0 0 100 100" style="width: 100%; height: 100%;">
+                        <circle cx="50" cy="50" r="48" fill="none" stroke="#374151" stroke-width="1" stroke-dasharray="2 2"/>
+                        <text x="50" y="12" fill="var(--north)" font-weight="bold" font-size="10" text-anchor="middle">N</text>
+                        <text x="88" y="54" fill="var(--text)" font-weight="bold" font-size="8" text-anchor="middle">E</text>
+                        <text x="50" y="94" fill="var(--text)" font-weight="bold" font-size="8" text-anchor="middle">S</text>
+                        <text x="12" y="54" fill="var(--text)" font-weight="bold" font-size="8" text-anchor="middle">O</text>
+                        <path d="M50 15 L44 50 L50 85 L56 50 Z" fill="var(--north)" stroke="white" stroke-width="0.5"/>
+                        <circle cx="50" cy="50" r="3" fill="var(--accent)"/>
+                    </svg>
+                </div>
             </div>
             <div style="text-align: right;">
-                <div class="label">Orientation Smartphone</div>
+                <div class="label">CAP MAGNÉTIQUE</div>
                 <div class="value" id="val-compass">--°</div>
-                <div class="unit">Degrés (Nord)</div>
+                <div class="unit" id="dir-text">Direction: --</div>
             </div>
         </div>
     </div>
@@ -115,11 +135,12 @@
     const grid = document.getElementById('grid');
     const log = document.getElementById('status-log');
     const vizCompass = document.getElementById('viz-compass');
+    const dirText = document.getElementById('dir-text');
 
-    // Variables pour le lissage de la boussole
+    // Lissage avancé
     let targetHeading = 0;
-    let smoothedHeading = 0;
-    const smoothingFactor = 0.08; // Plus bas = plus lent/précis
+    let currentHeading = 0;
+    const lerpFactor = 0.05; // Très lent pour la précision
 
     const instruments = [
         { id: 'mag', name: "Magnétomètre X/Y/Z", unit: "µTesla", def: "N/A" },
@@ -129,17 +150,17 @@
         { id: 'lux', name: "Luminosité", unit: "Lux", def: "--" },
         { id: 'pressure', name: "Baromètre", unit: "hPa", def: "N/A" },
         { id: 'prox', name: "Proximité", unit: "cm", def: "N/A" },
-        { id: 'gps', name: "Coordonnées GPS", unit: "Lat/Lon", def: "Attente..." },
-        { id: 'alt', name: "Altitude GPS", unit: "Mètres", def: "--" },
-        { id: 'speed', name: "Vitesse GPS", unit: "km/h", def: "0" },
-        { id: 'net_rtt', name: "Ping (RTT)", unit: "ms", def: "--" },
-        { id: 'net_bw', name: "Bande Passante", unit: "Mbps", def: "--" },
+        { id: 'gps', name: "GPS", unit: "Lat/Lon", def: "Attente..." },
+        { id: 'alt', name: "Altitude", unit: "M", def: "--" },
+        { id: 'speed', name: "Vitesse", unit: "km/h", def: "0" },
+        { id: 'net_rtt', name: "Ping", unit: "ms", def: "--" },
+        { id: 'net_bw', name: "Bande P.", unit: "Mbps", def: "--" },
         { id: 'bat_level', name: "Batterie", unit: "%", def: "--" },
-        { id: 'bat_state', name: "État Charge", unit: "Statut", def: "--" },
-        { id: 'cpu', name: "Cœurs CPU", unit: "Threads", def: navigator.hardwareConcurrency || "?" },
-        { id: 'ram', name: "Mémoire RAM", unit: "GiB", def: navigator.deviceMemory || "?" },
-        { id: 'touch_f', name: "Pression Doigt", unit: "Force (0-1)", def: "0" },
-        { id: 'touch_r', name: "Surface Doigt", unit: "Radius Px", def: "0" }
+        { id: 'bat_state', name: "Charge", unit: "Statut", def: "--" },
+        { id: 'cpu', name: "CPU", unit: "Threads", def: navigator.hardwareConcurrency || "?" },
+        { id: 'ram', name: "RAM", unit: "GiB", def: navigator.deviceMemory || "?" },
+        { id: 'touch_f', name: "Touch Force", unit: "0-1", def: "0" },
+        { id: 'touch_r', name: "Touch Radius", unit: "Px", def: "0" }
     ];
 
     uiRefs['compass'] = { val: document.getElementById('val-compass'), src: document.getElementById('src-compass'), box: document.getElementById('box-compass') };
@@ -157,6 +178,11 @@
         uiRefs[inst.id] = { val: document.getElementById(`val-${inst.id}`), src: document.getElementById(`src-${inst.id}`), box: div };
     });
 
+    const getCardinal = (angle) => {
+        const directions = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+        return directions[Math.round(angle / 45) % 8];
+    };
+
     const updateVal = (id, value, source = "API") => {
         if (!uiRefs[id]) return;
         uiRefs[id].val.innerText = value;
@@ -165,80 +191,59 @@
         dataStore[id] = true;
     };
 
-    // Boucle de rendu pour la fluidité graphique (Lerp)
-    const animateCompass = () => {
-        // Calcul du plus court chemin circulaire
-        let diff = targetHeading - smoothedHeading;
+    // Boucle de rendu stabilisée
+    const loop = () => {
+        let diff = targetHeading - currentHeading;
         if (diff > 180) diff -= 360;
         if (diff < -180) diff += 360;
+        currentHeading += diff * lerpFactor;
         
-        smoothedHeading += diff * smoothingFactor;
-        vizCompass.style.transform = `rotate(${-smoothedHeading}deg)`;
-        requestAnimationFrame(animateCompass);
+        // Rotation inverse : le cadran reste au Nord, le smartphone bouge
+        vizCompass.style.transform = `rotate(${-currentHeading}deg)`;
+        
+        requestAnimationFrame(loop);
     };
 
     const initModernSensors = () => {
-        const sensors = [
+        const configs = [
             { class: 'Magnetometer', id: 'mag', map: s => `${s.x.toFixed(0)}|${s.y.toFixed(0)}|${s.z.toFixed(0)}`, src: "Hard" },
             { class: 'Accelerometer', id: 'acc', map: s => `${s.x.toFixed(1)}|${s.y.toFixed(1)}|${s.z.toFixed(1)}`, src: "Hard" },
             { class: 'Gyroscope', id: 'gyro', map: s => `${s.x.toFixed(1)}|${s.y.toFixed(1)}|${s.z.toFixed(1)}`, src: "Hard" },
             { class: 'GravitySensor', id: 'grav', map: s => `${s.x.toFixed(1)}|${s.y.toFixed(1)}|${s.z.toFixed(1)}`, src: "Hard" },
-            { class: 'PressureSensor', id: 'pressure', map: s => s.pressure.toFixed(1), src: "Hard" },
-            { class: 'ProximitySensor', id: 'prox', map: s => s.distance, src: "Hard" }
+            { class: 'PressureSensor', id: 'pressure', map: s => s.pressure.toFixed(1), src: "Hard" }
         ];
-
-        sensors.forEach(conf => {
-            if (conf.class in window) {
+        configs.forEach(c => {
+            if (c.class in window) {
                 try {
-                    const s = new window[conf.class]({ frequency: 60 });
-                    s.addEventListener('reading', () => updateVal(conf.id, conf.map(s), conf.src));
+                    const s = new window[c.class]({ frequency: 60 });
+                    s.onreading = () => updateVal(c.id, c.map(s), c.src);
                     s.start();
                 } catch(e) {}
             }
         });
-
-        if ('AmbientLightSensor' in window) {
-            try {
-                const als = new AmbientLightSensor();
-                als.onreading = () => updateVal('lux', als.illuminance, "ALS");
-                als.start();
-            } catch(e) { startCameraLuxFallback(); }
-        } else {
-            startCameraLuxFallback();
-        }
     };
 
-    const initLegacyAndSystem = () => {
-        const handleOrient = (e) => {
-            let heading = 0;
-            let src = "N/A";
-            if (e.webkitCompassHeading) { heading = e.webkitCompassHeading; src = "iOS"; }
-            else if (e.alpha && e.absolute) { heading = 360 - e.alpha; src = "Andr"; }
-            else if (e.alpha) { heading = e.alpha; src = "Rel"; }
+    const initLegacy = () => {
+        const handle = (e) => {
+            let h = 0;
+            let s = "Rel";
+            if (e.webkitCompassHeading) { h = e.webkitCompassHeading; s = "iOS"; }
+            else if (e.alpha && e.absolute) { h = 360 - e.alpha; s = "Andr"; }
+            else if (e.alpha) { h = e.alpha; }
 
-            targetHeading = heading; // On met à jour la cible
-            updateVal('compass', Math.round(heading) + "°", src);
-
-            if (!dataStore['mag']) {
-                updateVal('mag', `${(e.beta||0).toFixed(0)}|${(e.gamma||0).toFixed(0)}|?`, "Sim");
-            }
+            targetHeading = h;
+            updateVal('compass', Math.round(h) + "°", s);
+            dirText.innerText = "Direction: " + getCardinal(h);
         };
-        window.addEventListener('deviceorientationabsolute', handleOrient, true);
-        window.addEventListener('deviceorientation', handleOrient, true);
-
-        window.addEventListener('devicemotion', (e) => {
-            if (!dataStore['acc']) {
-                const a = e.accelerationIncludingGravity || e.acceleration;
-                if(a) updateVal('acc', `${(a.x||0).toFixed(1)}|${(a.y||0).toFixed(1)}|${(a.z||0).toFixed(1)}`, "Evt");
-            }
-        });
+        window.addEventListener('deviceorientationabsolute', handle, true);
+        window.addEventListener('deviceorientation', handle, true);
 
         if ('geolocation' in navigator) {
             navigator.geolocation.watchPosition(p => {
-                updateVal('gps', `${p.coords.latitude.toFixed(4)}, ${p.coords.longitude.toFixed(4)}`, "GPS");
-                if(p.coords.altitude) updateVal('alt', p.coords.altitude.toFixed(1), "GPS");
-                if(p.coords.speed) updateVal('speed', (p.coords.speed * 3.6).toFixed(1), "GPS");
-            }, null, { enableHighAccuracy: true });
+                updateVal('gps', `${p.coords.latitude.toFixed(4)},${p.coords.longitude.toFixed(4)}`, "GPS");
+                updateVal('alt', (p.coords.altitude || 0).toFixed(1), "GPS");
+                updateVal('speed', ((p.coords.speed || 0) * 3.6).toFixed(1), "GPS");
+            });
         }
 
         if (navigator.getBattery) {
@@ -247,49 +252,44 @@
                 b.onlevelchange = up; b.onchargingchange = up; up();
             });
         }
-
-        if (navigator.connection) {
-            const upNet = () => { updateVal('net_rtt', navigator.connection.rtt || "?", "Net"); updateVal('net_bw', navigator.connection.downlink || "?", "Net"); };
-            navigator.connection.onchange = upNet; upNet();
-        }
-
-        window.addEventListener('touchmove', (e) => {
-            const t = e.touches[0];
-            updateVal('touch_f', (t.force || 0).toFixed(2), "Tch");
-            updateVal('touch_r', (t.radiusX || 1).toFixed(1), "Tch");
-        }, {passive: true});
     };
 
-    const startCameraLuxFallback = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            const video = document.getElementById('hidden-video');
-            const canvas = document.getElementById('lux-canvas');
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            video.srcObject = stream;
-            const computeLux = () => {
-                if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                    ctx.drawImage(video, 0, 0, 50, 50);
-                    const p = ctx.getImageData(0, 0, 50, 50).data;
-                    let sum = 0;
-                    for(let i=0; i<p.length; i+=16) { sum += (p[i]*0.299 + p[i+1]*0.587 + p[i+2]*0.114); }
-                    updateVal('lux', Math.round((sum / (p.length / 16)) * 2), "CAM"); 
-                }
-                requestAnimationFrame(computeLux);
-            };
-            computeLux();
-        } catch(e) { updateVal('lux', "Bloqué", "ERR"); }
+    // Fallback Lux via Camera
+    const initLux = async () => {
+        if ('AmbientLightSensor' in window) {
+            const als = new AmbientLightSensor();
+            als.onreading = () => updateVal('lux', als.illuminance, "ALS");
+            als.start();
+        } else {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                const v = document.getElementById('hidden-video');
+                const c = document.getElementById('lux-canvas');
+                const ctx = c.getContext('2d', {willReadFrequently:true});
+                v.srcObject = stream;
+                const calc = () => {
+                    if (v.readyState === 4) {
+                        ctx.drawImage(v, 0,0,50,50);
+                        const d = ctx.getImageData(0,0,50,50).data;
+                        let s = 0;
+                        for(let i=0; i<d.length; i+=16) s += (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114);
+                        updateVal('lux', Math.round((s/(d.length/16))*2), "CAM");
+                    }
+                    requestAnimationFrame(calc);
+                };
+                calc();
+            } catch(e) { updateVal('lux', "N/A", "ERR"); }
+        }
     };
 
     document.getElementById('btn-start').onclick = async () => {
         document.getElementById('btn-start').style.display = 'none';
-        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-            try { await DeviceOrientationEvent.requestPermission(); } catch(e) {}
-        }
+        if (typeof DeviceOrientationEvent?.requestPermission === 'function') await DeviceOrientationEvent.requestPermission();
         initModernSensors();
-        initLegacyAndSystem();
-        animateCompass(); // Lance la boucle de lissage
-        log.innerText = "Audit stabilisé actif.";
+        initLegacy();
+        initLux();
+        requestAnimationFrame(loop);
+        log.innerText = "Audit Haute Précision Actif.";
     };
 }
 </script>
