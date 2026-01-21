@@ -30,7 +30,6 @@
             margin-top: 20px;
         }
 
-        /* Style spécifique pour la boussole visuelle */
         .instrument.boussole-geante {
             grid-column: 1 / -1;
             display: flex;
@@ -45,7 +44,8 @@
             width: 100px;
             height: 100px;
             position: relative;
-            transition: transform 0.1s linear;
+            /* Transition assouplie pour éviter les sauts brusques */
+            transition: transform 0.2s cubic-bezier(0.1, 0.5, 0.1, 1);
         }
 
         .instrument {
@@ -116,6 +116,11 @@
     const log = document.getElementById('status-log');
     const vizCompass = document.getElementById('viz-compass');
 
+    // Variables pour le lissage de la boussole
+    let targetHeading = 0;
+    let smoothedHeading = 0;
+    const smoothingFactor = 0.08; // Plus bas = plus lent/précis
+
     const instruments = [
         { id: 'mag', name: "Magnétomètre X/Y/Z", unit: "µTesla", def: "N/A" },
         { id: 'gyro', name: "Gyroscope", unit: "rad/s", def: "0, 0, 0" },
@@ -137,10 +142,8 @@
         { id: 'touch_r', name: "Surface Doigt", unit: "Radius Px", def: "0" }
     ];
 
-    // Initialisation des refs boussole (déjà dans le HTML)
     uiRefs['compass'] = { val: document.getElementById('val-compass'), src: document.getElementById('src-compass'), box: document.getElementById('box-compass') };
 
-    // Génération du reste de la grille
     instruments.forEach(inst => {
         const div = document.createElement('div');
         div.className = 'instrument';
@@ -160,6 +163,18 @@
         uiRefs[id].src.innerText = source;
         uiRefs[id].box.classList.add(source === "CAM" || source === "Sim" ? "simulated" : "active");
         dataStore[id] = true;
+    };
+
+    // Boucle de rendu pour la fluidité graphique (Lerp)
+    const animateCompass = () => {
+        // Calcul du plus court chemin circulaire
+        let diff = targetHeading - smoothedHeading;
+        if (diff > 180) diff -= 360;
+        if (diff < -180) diff += 360;
+        
+        smoothedHeading += diff * smoothingFactor;
+        vizCompass.style.transform = `rotate(${-smoothedHeading}deg)`;
+        requestAnimationFrame(animateCompass);
     };
 
     const initModernSensors = () => {
@@ -201,8 +216,8 @@
             else if (e.alpha && e.absolute) { heading = 360 - e.alpha; src = "Andr"; }
             else if (e.alpha) { heading = e.alpha; src = "Rel"; }
 
+            targetHeading = heading; // On met à jour la cible
             updateVal('compass', Math.round(heading) + "°", src);
-            vizCompass.style.transform = `rotate(${-heading}deg)`;
 
             if (!dataStore['mag']) {
                 updateVal('mag', `${(e.beta||0).toFixed(0)}|${(e.gamma||0).toFixed(0)}|?`, "Sim");
@@ -273,7 +288,8 @@
         }
         initModernSensors();
         initLegacyAndSystem();
-        log.innerText = "Audit en cours...";
+        animateCompass(); // Lance la boucle de lissage
+        log.innerText = "Audit stabilisé actif.";
     };
 }
 </script>
