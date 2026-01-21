@@ -3,176 +3,304 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Expert Sensor Scan - Ultra Precision</title>
+    <title>ULTIMATE SENSOR FUSION</title>
     <style>
         :root {
-            --bg: #020617; --card: #0f172a; --accent: #38bdf8;
-            --text: #f8fafc; --dim: #64748b; --neon: #22d3ee;
+            --bg: #000000;
+            --card: #111827;
+            --accent: #00f0ff; /* Cyberpunk Cyan */
+            --text: #e5e7eb;
+            --dim: #6b7280;
+            --warn: #facc15;
+            --success: #22c55e;
         }
-        body { background: var(--bg); color: var(--text); font-family: 'Consolas', monospace; margin: 0; padding: 15px; font-size: 13px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .instrument { 
-            background: var(--card); border: 1px solid #1e293b; padding: 12px; border-radius: 8px;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        body {
+            background: var(--bg); color: var(--text);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0; padding: 15px;
+            font-size: 12px;
+            padding-bottom: 50px;
         }
-        .full { grid-column: 1 / -1; }
-        .label { color: var(--accent); font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
-        .val { color: var(--neon); font-size: 16px; font-variant-numeric: tabular-nums; }
-        .sub { font-size: 9px; color: var(--dim); margin-top: 4px; }
-        #btn-start { 
-            background: linear-gradient(45deg, #0ea5e9, #22d3ee); color: #000; 
-            border: none; padding: 20px; width: 100%; font-weight: 900; 
-            border-radius: 8px; cursor: pointer; margin-bottom: 15px;
+        h1 { color: var(--accent); text-align: center; border-bottom: 2px solid var(--accent); padding-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 8px;
+            margin-top: 20px;
         }
-        video { display: none; } /* Caché, utilisé pour le calcul de lumière */
+
+        .instrument {
+            background: var(--card);
+            border: 1px solid #374151;
+            padding: 10px;
+            border-radius: 4px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .instrument.active { border-color: var(--success); box-shadow: 0 0 5px rgba(34, 197, 94, 0.2); }
+        .instrument.simulated { border-color: var(--warn); }
+
+        .label { color: var(--accent); font-weight: bold; font-size: 10px; text-transform: uppercase; margin-bottom: 5px; }
+        .value { font-size: 14px; font-weight: bold; color: #fff; word-break: break-all; }
+        .unit { font-size: 9px; color: var(--dim); margin-top: 2px; }
+        .source-tag { position: absolute; top: 5px; right: 5px; font-size: 8px; padding: 2px 4px; border-radius: 2px; background: #374151; color: #fff; }
+
+        #btn-start {
+            position: sticky; top: 10px; z-index: 100;
+            background: var(--accent); color: #000;
+            border: none; padding: 15px; width: 100%;
+            font-weight: 900; font-size: 16px;
+            border-radius: 4px; cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+        }
+
+        /* Video caché pour le calcul de lumière */
+        #hidden-video { position: fixed; top: -1000px; opacity: 0; pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <button id="btn-start">ACTIVER L'AUDIT DE PRÉCISION</button>
-    
-    <div class="grid" id="ui">
-        <div class="instrument full">
-            <div class="label">Boussole & Nord Magnétique</div>
-            <div class="val" id="v-compass">--°</div>
-            <div class="sub" id="v-compass-type">En attente...</div>
-        </div>
+    <h1>Global Sensor Audit</h1>
+    <button id="btn-start">INITIALISER TOUS LES CAPTEURS</button>
+    <div id="status-log" style="color: var(--dim); text-align: center; margin-top: 5px;">En attente d'activation...</div>
 
-        <div class="instrument">
-            <div class="label">Magnétomètre (Brut)</div>
-            <div class="val" id="v-mag">X:0 Y:0 Z:0</div>
-            <div class="sub">Unité: Microteslas (µT)</div>
-        </div>
+    <div class="dashboard" id="grid"></div>
 
-        <div class="instrument">
-            <div class="label">Luminosité (Lux)</div>
-            <div class="val" id="v-lux">--</div>
-            <div class="sub" id="v-lux-source">Capteur: Standard</div>
-        </div>
-
-        <div class="instrument">
-            <div class="label">Accéléromètre</div>
-            <div class="val" id="v-acc">0, 0, 0</div>
-        </div>
-
-        <div class="instrument">
-            <div class="label">Rotation</div>
-            <div class="val" id="v-gyro">0, 0, 0</div>
-        </div>
-    </div>
-
-    <video id="video-hidden" autoplay playsinline></video>
-    <canvas id="canvas-hidden" style="display:none;"></canvas>
+    <video id="hidden-video" autoplay playsinline muted></video>
+    <canvas id="lux-canvas" width="50" height="50" style="display:none;"></canvas>
 
 <script>
 {
-    const db = {};
-    const video = document.getElementById('video-hidden');
-    const canvas = document.getElementById('canvas-hidden');
-    const ctx = canvas.getContext('2d');
+    // --- CONFIGURATION EXHAUSTIVE ---
+    const dataStore = {};
+    const uiRefs = {};
+    const grid = document.getElementById('grid');
+    const log = document.getElementById('status-log');
 
-    // 1. GESTION DE LA LUMIÈRE (Double méthode)
-    const initLight = async () => {
-        if ('AmbientLightSensor' in window) {
-            try {
-                const sensor = new AmbientLightSensor({frequency: 10});
-                sensor.onreading = () => {
-                    db['lux'] = Math.round(sensor.illuminance);
-                    db['lux-src'] = "Matériel: AmbientLightSensor";
-                };
-                sensor.start();
-            } catch(e) { setupCameraLux(); }
-        } else {
-            setupCameraLux();
-        }
-    };
-
-    // Analyseur de luminance via caméra (Finesse logicielle)
-    const setupCameraLux = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            video.srcObject = stream;
-            db['lux-src'] = "Matériel: Analyse Optique (Caméra)";
-            
-            setInterval(() => {
-                if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                    canvas.width = 64; canvas.height = 64;
-                    ctx.drawImage(video, 0, 0, 64, 64);
-                    const data = ctx.getImageData(0, 0, 64, 64).data;
-                    let brightness = 0;
-                    for (let i = 0; i < data.length; i += 4) {
-                        brightness += (0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2]);
-                    }
-                    db['lux'] = Math.round((brightness / (data.length / 4)));
-                }
-            }, 500);
-        } catch(e) { db['lux'] = "Accès Caméra Refusé"; }
-    };
-
-    // 2. GESTION MAGNÉTO / BOUSSOLE (Triple méthode)
-    const initMagneto = () => {
-        // Tentative API Moderne
-        if ('Magnetometer' in window) {
-            try {
-                const mag = new Magnetometer({frequency: 60});
-                mag.onreading = () => {
-                    db['mag'] = `${mag.x.toFixed(1)} ${mag.y.toFixed(1)} ${mag.z.toFixed(1)}`;
-                };
-                mag.start();
-            } catch(e) {}
-        }
-
-        // Boussole & Fallback Orientation
-        window.addEventListener('deviceorientationabsolute', handleOrient, true);
-        window.addEventListener('deviceorientation', handleOrient, true);
-    };
-
-    const handleOrient = (e) => {
-        let heading = 0;
-        if (e.webkitCompassHeading) {
-            heading = e.webkitCompassHeading; // iOS
-            db['compass-type'] = "Méthode: Webkit Compass (iOS)";
-        } else if (e.absolute || e.alpha !== null) {
-            heading = 360 - e.alpha; // Android
-            db['compass-type'] = "Méthode: Absolute Alpha (Android)";
-        }
-        db['compass'] = Math.round(heading) + "°";
+    // Définition de tous les instruments possibles
+    const instruments = [
+        // ORIENTATION & BOUSSOLE
+        { id: 'compass', name: "Boussole (Nord)", unit: "Degrés (°)", def: "--" },
+        { id: 'mag', name: "Magnétomètre X/Y/Z", unit: "µTesla", def: "N/A" },
+        { id: 'gyro', name: "Gyroscope", unit: "rad/s", def: "0, 0, 0" },
+        { id: 'acc', name: "Accéléromètre", unit: "m/s²", def: "0, 0, 0" },
+        { id: 'grav', name: "Gravité", unit: "m/s²", def: "N/A" },
         
-        // Si le magnétomètre standard a échoué, on déduit une activité magnétique
-        if (!db['mag']) {
-            db['mag'] = `A:${e.alpha?.toFixed(0)} B:${e.beta?.toFixed(0)} G:${e.gamma?.toFixed(0)}`;
-        }
+        // ENVIRONNEMENT
+        { id: 'lux', name: "Luminosité", unit: "Lux", def: "--" },
+        { id: 'pressure', name: "Baromètre", unit: "hPa", def: "N/A" },
+        { id: 'prox', name: "Proximité", unit: "cm", def: "N/A" },
+
+        // LOCALISATION
+        { id: 'gps', name: "Coordonnées GPS", unit: "Lat/Lon", def: "Refusé/Inactif" },
+        { id: 'alt', name: "Altitude GPS", unit: "Mètres", def: "--" },
+        { id: 'speed', name: "Vitesse GPS", unit: "km/h", def: "0" },
+
+        // SYSTÈME & RÉSEAU
+        { id: 'net_rtt', name: "Ping (RTT)", unit: "ms", def: "--" },
+        { id: 'net_bw', name: "Bande Passante", unit: "Mbps", def: "--" },
+        { id: 'bat_level', name: "Batterie", unit: "%", def: "--" },
+        { id: 'bat_state', name: "État Charge", unit: "Statut", def: "--" },
+        { id: 'cpu', name: "Cœurs CPU", unit: "Threads", def: navigator.hardwareConcurrency || "?" },
+        { id: 'ram', name: "Mémoire RAM", unit: "GiB", def: navigator.deviceMemory || "?" },
+
+        // INTERACTION
+        { id: 'touch_f', name: "Pression Doigt", unit: "Force (0-1)", def: "0" },
+        { id: 'touch_r', name: "Surface Doigt", unit: "Radius Px", def: "0" }
+    ];
+
+    // --- GÉNÉRATION UI ---
+    instruments.forEach(inst => {
+        const div = document.createElement('div');
+        div.className = 'instrument';
+        div.innerHTML = `
+            <div class="label">${inst.name}</div>
+            <div class="source-tag" id="src-${inst.id}">...</div>
+            <div class="value" id="val-${inst.id}">${inst.def}</div>
+            <div class="unit">${inst.unit}</div>
+        `;
+        grid.appendChild(div);
+        uiRefs[inst.id] = { val: document.getElementById(`val-${inst.id}`), src: document.getElementById(`src-${inst.id}`), box: div };
+    });
+
+    const updateVal = (id, value, source = "API") => {
+        if (!uiRefs[id]) return;
+        uiRefs[id].val.innerText = value;
+        uiRefs[id].src.innerText = source;
+        uiRefs[id].box.classList.add(source === "CAM" || source === "Calc" ? "simulated" : "active");
+        dataStore[id] = true; // Mark as alive
     };
 
-    // 3. BOUCLE DE RENDU
-    const render = () => {
-        if (db['compass']) document.getElementById('v-compass').innerText = db['compass'];
-        if (db['compass-type']) document.getElementById('v-compass-type').innerText = db['compass-type'];
-        if (db['mag']) document.getElementById('v-mag').innerText = db['mag'];
-        if (db['lux']) document.getElementById('v-lux').innerText = db['lux'];
-        if (db['lux-src']) document.getElementById('v-lux-source').innerText = db['lux-src'];
-        
-        requestAnimationFrame(render);
-    };
+    // --- MOTEUR 1: API CAPTEURS MODERNES (Generic Sensor API) ---
+    const initModernSensors = () => {
+        const sensors = [
+            { class: 'AbsoluteOrientationSensor', id: 'compass', map: s => (s.quaternion ? "Actif (Quat)" : "N/A") }, // Simplification, le calcul quaternion->degree est complexe, on utilise le fallback pour l'affichage simple
+            { class: 'Magnetometer', id: 'mag', map: s => `${s.x.toFixed(0)}|${s.y.toFixed(0)}|${s.z.toFixed(0)}`, src: "Hard" },
+            { class: 'Accelerometer', id: 'acc', map: s => `${s.x.toFixed(1)}|${s.y.toFixed(1)}|${s.z.toFixed(1)}`, src: "Hard" },
+            { class: 'Gyroscope', id: 'gyro', map: s => `${s.x.toFixed(1)}|${s.y.toFixed(1)}|${s.z.toFixed(1)}`, src: "Hard" },
+            { class: 'GravitySensor', id: 'grav', map: s => `${s.x.toFixed(1)}|${s.y.toFixed(1)}|${s.z.toFixed(1)}`, src: "Hard" },
+            { class: 'PressureSensor', id: 'pressure', map: s => s.pressure.toFixed(1), src: "Hard" },
+            { class: 'ProximitySensor', id: 'prox', map: s => s.distance, src: "Hard" }
+        ];
 
-    document.getElementById('btn-start').onclick = async () => {
-        document.getElementById('btn-start').style.display = 'none';
-        
-        // Demande de permissions (iOS)
-        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-            await DeviceOrientationEvent.requestPermission();
-        }
-
-        initLight();
-        initMagneto();
-        
-        // Accéléromètre standard en plus
-        window.addEventListener('devicemotion', (e) => {
-            const a = e.accelerationIncludingGravity;
-            document.getElementById('v-acc').innerText = `${a.x?.toFixed(1)}, ${a.y?.toFixed(1)}, ${a.z?.toFixed(1)}`;
+        sensors.forEach(conf => {
+            if (conf.class in window) {
+                try {
+                    const s = new window[conf.class]({ frequency: 60 });
+                    s.addEventListener('reading', () => updateVal(conf.id, conf.map(s), conf.src));
+                    s.start();
+                } catch(e) { console.log("Modern API Blocked: " + conf.class); }
+            }
         });
 
-        render();
+        // Cas spécial Lumière (Modern)
+        if ('AmbientLightSensor' in window) {
+            try {
+                const als = new AmbientLightSensor();
+                als.onreading = () => updateVal('lux', als.illuminance, "ALS");
+                als.start();
+            } catch(e) { startCameraLuxFallback(); }
+        } else {
+            startCameraLuxFallback();
+        }
+    };
+
+    // --- MOTEUR 2: FALLBACKS ET LEGACY (Boussole/Motion/GPS) ---
+    const initLegacyAndSystem = () => {
+        // 1. BOUSSOLE & ORIENTATION
+        const handleOrient = (e) => {
+            // Boussole
+            let compass = 0;
+            let src = "N/A";
+            
+            if (e.webkitCompassHeading) {
+                compass = e.webkitCompassHeading;
+                src = "iOS";
+            } else if (e.alpha && e.absolute) {
+                compass = 360 - e.alpha;
+                src = "Andr";
+            } else if (e.alpha) {
+                compass = e.alpha; // Valeur relative si absolute pas dispo
+                src = "Rel";
+            }
+            updateVal('compass', Math.round(compass) + "°", src);
+
+            // Fallback Magnétomètre simulé (si API Magnetometer échoue)
+            if (!dataStore['mag']) {
+                updateVal('mag', `${(e.beta||0).toFixed(0)}|${(e.gamma||0).toFixed(0)}|?`, "Sim");
+            }
+        };
+        window.addEventListener('deviceorientationabsolute', handleOrient, true); // Android précis
+        window.addEventListener('deviceorientation', handleOrient, true); // iOS & Standard
+
+        // 2. MOUVEMENTS (Fallback Accelerometer)
+        window.addEventListener('devicemotion', (e) => {
+            if (!dataStore['acc']) {
+                const a = e.accelerationIncludingGravity || e.acceleration;
+                if(a) updateVal('acc', `${(a.x||0).toFixed(1)}|${(a.y||0).toFixed(1)}|${(a.z||0).toFixed(1)}`, "Evt");
+            }
+            if (!dataStore['gyro']) {
+                const r = e.rotationRate;
+                if(r) updateVal('gyro', `${(r.alpha||0).toFixed(1)}|${(r.beta||0).toFixed(1)}|${(r.gamma||0).toFixed(1)}`, "Evt");
+            }
+        });
+
+        // 3. GPS
+        if ('geolocation' in navigator) {
+            navigator.geolocation.watchPosition(
+                p => {
+                    updateVal('gps', `${p.coords.latitude.toFixed(4)}, ${p.coords.longitude.toFixed(4)}`, "GPS");
+                    if(p.coords.altitude) updateVal('alt', p.coords.altitude.toFixed(1), "GPS");
+                    if(p.coords.speed) updateVal('speed', (p.coords.speed * 3.6).toFixed(1), "GPS");
+                },
+                e => updateVal('gps', "Refusé", "ERR"),
+                { enableHighAccuracy: true }
+            );
+        }
+
+        // 4. BATTERIE
+        if (navigator.getBattery) {
+            navigator.getBattery().then(b => {
+                const up = () => {
+                    updateVal('bat_level', (b.level * 100).toFixed(0), "API");
+                    updateVal('bat_state', b.charging ? "Charge" : "Secteur", "API");
+                };
+                b.onlevelchange = up; b.onchargingchange = up;
+                up();
+            });
+        }
+
+        // 5. RÉSEAU
+        if (navigator.connection) {
+            const upNet = () => {
+                updateVal('net_rtt', navigator.connection.rtt || "?", "Net");
+                updateVal('net_bw', navigator.connection.downlink || "?", "Net");
+            };
+            navigator.connection.onchange = upNet;
+            upNet();
+        }
+
+        // 6. TOUCHER (Interaction)
+        window.addEventListener('touchmove', (e) => {
+            const t = e.touches[0];
+            updateVal('touch_f', (t.force || 0).toFixed(2), "Tch");
+            updateVal('touch_r', (t.radiusX || 1).toFixed(1), "Tch");
+        }, {passive: true});
+    };
+
+    // --- MOTEUR 3: FALLBACK CAMERA POUR LUMIÈRE ---
+    const startCameraLuxFallback = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            const video = document.getElementById('hidden-video');
+            const canvas = document.getElementById('lux-canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            
+            video.srcObject = stream;
+            
+            const computeLux = () => {
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    ctx.drawImage(video, 0, 0, 50, 50);
+                    const p = ctx.getImageData(0, 0, 50, 50).data;
+                    let sum = 0;
+                    // Sampling simple pour perf
+                    for(let i=0; i<p.length; i+=16) { 
+                        // Luminance relative (R*0.3 + G*0.59 + B*0.11)
+                        sum += (p[i]*0.299 + p[i+1]*0.587 + p[i+2]*0.114);
+                    }
+                    const avg = sum / (p.length / 16);
+                    // Conversion approximative pixel -> lux
+                    updateVal('lux', Math.round(avg * 2), "CAM"); 
+                }
+                requestAnimationFrame(computeLux);
+            };
+            computeLux();
+        } catch(e) {
+            updateVal('lux', "Cam Refusée", "ERR");
+        }
+    };
+
+    // --- ACTIVATION ---
+    document.getElementById('btn-start').onclick = async () => {
+        const btn = document.getElementById('btn-start');
+        btn.innerText = "AUDIT EN COURS...";
+        btn.style.opacity = "0.5";
+        
+        // 1. Permission Motion (iOS 13+)
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            try { await DeviceOrientationEvent.requestPermission(); } catch(e) {}
+        }
+        
+        // 2. Lancement des moteurs
+        initModernSensors();
+        initLegacyAndSystem();
+        
+        log.innerText = "Tous les écouteurs sont actifs. Bougez l'appareil.";
     };
 }
 </script>
