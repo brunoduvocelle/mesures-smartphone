@@ -3,293 +3,422 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE SENSOR FUSION - BOUSSOLE PRO</title>
+    <title>PRECISION SENSOR SUITE</title>
     <style>
         :root {
-            --bg: #000000;
-            --card: #111827;
-            --accent: #00f0ff;
-            --text: #e5e7eb;
-            --dim: #6b7280;
-            --warn: #facc15;
-            --success: #22c55e;
-            --north: #ff4757;
+            --bg: #050505;
+            --card: #141b2d;
+            --accent: #00d2ff;
+            --text: #e0e0e0;
+            --dim: #5c6b7f;
+            --warn: #ffca28;
+            --success: #00e676;
+            --danger: #ff5252;
+            --north: #ff3d00;
         }
         body {
             background: var(--bg); color: var(--text);
-            font-family: 'Courier New', Courier, monospace;
+            font-family: 'Consolas', 'Monaco', monospace;
             margin: 0; padding: 15px;
             font-size: 12px;
-            padding-bottom: 50px;
+            padding-bottom: 60px;
+            overscroll-behavior: none;
         }
-        h1 { color: var(--accent); text-align: center; border-bottom: 2px solid var(--accent); padding-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
+        h1 { 
+            color: var(--accent); text-align: center; 
+            border-bottom: 1px solid #333; padding-bottom: 10px; 
+            font-weight: 400; letter-spacing: 1px; margin-top: 0;
+        }
         
         .dashboard {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 8px;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 10px;
             margin-top: 20px;
         }
 
-        /* BOUSSOLE RÉVISÉE */
-        .instrument.boussole-geante {
+        /* --- ZONE BOUSSOLE AVANCÉE --- */
+        .instrument.boussole-container {
             grid-column: 1 / -1;
             display: flex;
             flex-direction: row;
             align-items: center;
-            justify-content: space-around;
-            padding: 20px;
-            min-height: 140px;
-            background: radial-gradient(circle at center, #1e293b 0%, #111827 100%);
+            justify-content: space-between;
+            padding: 15px 25px;
+            background: radial-gradient(circle at 50% 50%, #1f2a40 0%, #141b2d 100%);
+            border: 1px solid #333;
+            min-height: 160px;
         }
 
-        .compass-visual {
-            width: 120px;
-            height: 120px;
+        .compass-wrapper {
             position: relative;
-            /* Le lissage est géré par JS pour plus de contrôle que CSS */
+            width: 140px; height: 140px;
         }
 
-        /* Repère fixe du smartphone (le haut du téléphone) */
-        .phone-marker {
+        .compass-rose {
+            width: 100%; height: 100%;
+            transition: transform 0.1s linear; /* Lissage JS préféré, mais CSS backup */
+        }
+
+        /* Le niveau à bulle (Spirit Level) */
+        .bubble-level-bg {
             position: absolute;
-            top: -10px; left: 50%;
-            transform: translateX(-50%);
-            width: 0; height: 0;
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
-            border-bottom: 12px solid var(--accent);
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px; height: 40px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
             z-index: 10;
+            pointer-events: none;
+        }
+        .bubble-dot {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 12px; height: 12px;
+            background-color: var(--success);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 5px var(--success);
+            transition: transform 0.1s ease-out; /* Réactif mais fluide */
+            z-index: 11;
         }
 
+        .compass-data {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .large-val { font-size: 28px; font-weight: bold; color: var(--text); }
+        .sub-val { font-size: 11px; color: var(--dim); }
+        .calib-status { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #333; display: inline-block; margin-top: 5px;}
+        .calib-ok { color: var(--success); border: 1px solid var(--success); }
+        .calib-bad { color: var(--warn); border: 1px solid var(--warn); animation: pulse 2s infinite; }
+
+        /* --- CARTES INSTRUMENTS --- */
         .instrument {
             background: var(--card);
-            border: 1px solid #374151;
-            padding: 10px;
-            border-radius: 4px;
+            border: 1px solid #2d3748;
+            padding: 12px;
+            border-radius: 6px;
             position: relative;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
         }
+        .instrument.active { border-left: 3px solid var(--success); }
+        .instrument.inactive { border-left: 3px solid #333; opacity: 0.7; }
 
-        .instrument.active { border-color: var(--success); box-shadow: 0 0 5px rgba(34, 197, 94, 0.2); }
-        .instrument.simulated { border-color: var(--warn); }
-
-        .label { color: var(--accent); font-weight: bold; font-size: 10px; text-transform: uppercase; margin-bottom: 5px; }
-        .value { font-size: 14px; font-weight: bold; color: #fff; word-break: break-all; }
-        .unit { font-size: 9px; color: var(--dim); margin-top: 2px; }
-        .source-tag { position: absolute; top: 5px; right: 5px; font-size: 8px; padding: 2px 4px; border-radius: 2px; background: #374151; color: #fff; }
+        .label { color: var(--accent); font-weight: 700; font-size: 9px; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }
+        .value { font-size: 13px; font-weight: 600; color: #fff; font-family: 'Segoe UI', sans-serif; }
+        .unit { font-size: 9px; color: var(--dim); margin-left: 2px; }
+        .meta { font-size: 9px; color: #666; margin-top: 4px; border-top: 1px solid #222; padding-top: 4px; }
 
         #btn-start {
             position: sticky; top: 10px; z-index: 100;
             background: var(--accent); color: #000;
-            border: none; padding: 15px; width: 100%;
-            font-weight: 900; font-size: 16px;
+            border: none; padding: 14px; width: 100%;
+            font-weight: 800; font-size: 14px;
             border-radius: 4px; cursor: pointer;
             text-transform: uppercase;
-            box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+            box-shadow: 0 4px 15px rgba(0, 210, 255, 0.2);
+            transition: all 0.2s;
         }
+        #btn-start:active { transform: scale(0.98); }
 
-        #hidden-video { position: fixed; top: -1000px; opacity: 0; pointer-events: none; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        
+        #hidden-video { display: none; }
     </style>
 </head>
 <body>
 
-    <h1>Global Sensor Audit</h1>
-    <button id="btn-start">ACTIVER LES INSTRUMENTS</button>
-    <div id="status-log" style="color: var(--dim); text-align: center; margin-top: 5px;">Calibrage requis...</div>
+    <h1>LABORATOIRE DE CAPTEURS</h1>
+    <button id="btn-start">DÉVERROUILLER L'ACCÈS MATÉRIEL</button>
+    <div id="status-log" style="color: var(--dim); text-align: center; margin: 8px 0; font-size: 10px;">En attente d'interaction utilisateur...</div>
 
     <div class="dashboard" id="grid">
-        <div class="instrument boussole-geante active" id="box-compass">
-            <div class="source-tag" id="src-compass">...</div>
-            <div style="position: relative;">
-                <div class="phone-marker"></div>
-                <div class="compass-visual" id="viz-compass">
-                    <svg viewBox="0 0 100 100" style="width: 100%; height: 100%;">
-                        <circle cx="50" cy="50" r="48" fill="none" stroke="#374151" stroke-width="1" stroke-dasharray="2 2"/>
-                        <text x="50" y="12" fill="var(--north)" font-weight="bold" font-size="10" text-anchor="middle">N</text>
-                        <text x="88" y="54" fill="var(--text)" font-weight="bold" font-size="8" text-anchor="middle">E</text>
-                        <text x="50" y="94" fill="var(--text)" font-weight="bold" font-size="8" text-anchor="middle">S</text>
-                        <text x="12" y="54" fill="var(--text)" font-weight="bold" font-size="8" text-anchor="middle">O</text>
-                        <path d="M50 15 L44 50 L50 85 L56 50 Z" fill="var(--north)" stroke="white" stroke-width="0.5"/>
-                        <circle cx="50" cy="50" r="3" fill="var(--accent)"/>
+        
+        <div class="instrument boussole-container active">
+            <div class="compass-wrapper">
+                <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); width: 2px; height: 10px; background: var(--accent); z-index: 20;"></div>
+                
+                <div class="compass-rose" id="viz-compass">
+                    <svg viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="48" fill="none" stroke="#333" stroke-width="1"/>
+                        <circle cx="50" cy="50" r="45" fill="none" stroke="#444" stroke-width="0.5" stroke-dasharray="1 2"/>
+                        
+                        <path d="M50 2 L50 6" stroke="var(--north)" stroke-width="2"/>
+                        <path d="M50 94 L50 98" stroke="#fff" stroke-width="1"/>
+                        <path d="M94 50 L98 50" stroke="#fff" stroke-width="1"/>
+                        <path d="M2 50 L6 50" stroke="#fff" stroke-width="1"/>
+                        
+                        <text x="50" y="18" fill="var(--north)" font-weight="bold" font-size="10" text-anchor="middle">N</text>
+                        <text x="85" y="53" fill="#888" font-size="8" text-anchor="middle">E</text>
+                        <text x="50" y="88" fill="#888" font-size="8" text-anchor="middle">S</text>
+                        <text x="15" y="53" fill="#888" font-size="8" text-anchor="middle">O</text>
                     </svg>
                 </div>
+
+                <div class="bubble-level-bg"></div>
+                <div class="bubble-dot" id="viz-bubble"></div>
             </div>
-            <div style="text-align: right;">
+
+            <div class="compass-data">
                 <div class="label">CAP MAGNÉTIQUE</div>
-                <div class="value" id="val-compass">--°</div>
-                <div class="unit" id="dir-text">Direction: --</div>
+                <div class="large-val" id="val-compass">---°</div>
+                <div class="sub-val" id="val-cardinal">---</div>
+                <div class="sub-val" id="val-tilt">Inclin: 0°</div>
+                <div class="calib-status calib-bad" id="calib-msg">NON CALIBRÉ</div>
             </div>
         </div>
-    </div>
+
+        </div>
 
     <video id="hidden-video" autoplay playsinline muted></video>
-    <canvas id="lux-canvas" width="50" height="50" style="display:none;"></canvas>
+    <canvas id="lux-canvas" width="30" height="30" style="display:none;"></canvas>
 
 <script>
 {
-    const dataStore = {};
-    const uiRefs = {};
-    const grid = document.getElementById('grid');
-    const log = document.getElementById('status-log');
-    const vizCompass = document.getElementById('viz-compass');
-    const dirText = document.getElementById('dir-text');
-
-    // Lissage avancé
-    let targetHeading = 0;
-    let currentHeading = 0;
-    const lerpFactor = 0.05; // Très lent pour la précision
+    // --- CONFIGURATION ---
+    const ui = {
+        compass: document.getElementById('viz-compass'),
+        bubble: document.getElementById('viz-bubble'),
+        valCompass: document.getElementById('val-compass'),
+        valCardinal: document.getElementById('val-cardinal'),
+        valTilt: document.getElementById('val-tilt'),
+        calibMsg: document.getElementById('calib-msg'),
+        log: document.getElementById('status-log'),
+        grid: document.getElementById('grid')
+    };
 
     const instruments = [
-        { id: 'mag', name: "Magnétomètre X/Y/Z", unit: "µTesla", def: "N/A" },
-        { id: 'gyro', name: "Gyroscope", unit: "rad/s", def: "0, 0, 0" },
-        { id: 'acc', name: "Accéléromètre", unit: "m/s²", def: "0, 0, 0" },
-        { id: 'grav', name: "Gravité", unit: "m/s²", def: "N/A" },
-        { id: 'lux', name: "Luminosité", unit: "Lux", def: "--" },
-        { id: 'pressure', name: "Baromètre", unit: "hPa", def: "N/A" },
-        { id: 'prox', name: "Proximité", unit: "cm", def: "N/A" },
-        { id: 'gps', name: "GPS", unit: "Lat/Lon", def: "Attente..." },
-        { id: 'alt', name: "Altitude", unit: "M", def: "--" },
-        { id: 'speed', name: "Vitesse", unit: "km/h", def: "0" },
-        { id: 'net_rtt', name: "Ping", unit: "ms", def: "--" },
-        { id: 'net_bw', name: "Bande P.", unit: "Mbps", def: "--" },
-        { id: 'bat_level', name: "Batterie", unit: "%", def: "--" },
-        { id: 'bat_state', name: "Charge", unit: "Statut", def: "--" },
-        { id: 'cpu', name: "CPU", unit: "Threads", def: navigator.hardwareConcurrency || "?" },
-        { id: 'ram', name: "RAM", unit: "GiB", def: navigator.deviceMemory || "?" },
-        { id: 'touch_f', name: "Touch Force", unit: "0-1", def: "0" },
-        { id: 'touch_r', name: "Touch Radius", unit: "Px", def: "0" }
+        { id: 'acc_g', name: "Force Totale (G)", unit: "G", def: "1.00", desc: "Doit être 1.00 au repos" },
+        { id: 'acc_raw', name: "Accélération X/Y/Z", unit: "m/s²", def: "0 | 0 | 0", desc: "Mouvements bruts" },
+        { id: 'gyro', name: "Rotation (Gyro)", unit: "rad/s", def: "0 | 0 | 0", desc: "Vitesse angulaire" },
+        { id: 'mag_field', name: "Champ Magnétique", unit: "µT", def: "0", desc: "Force interférence" },
+        { id: 'lux', name: "Luminosité", unit: "Lux", def: "--", desc: "Capteur ou Caméra" },
+        { id: 'gps', name: "Position GPS", unit: "", def: "Recherche...", desc: "Lat / Lon" },
+        { id: 'alt', name: "Altitude (GPS)", unit: "m", def: "--", desc: "Approx. WGS84" },
+        { id: 'gps_acc', name: "Précision GPS", unit: "m", def: "--", desc: "Rayon de confiance" },
+        { id: 'baro', name: "Pression Atmos.", unit: "hPa", def: "N/A", desc: "Baromètre physique" },
+        { id: 'bat', name: "Batterie", unit: "%", def: "--", desc: "Niveau de charge" },
+        { id: 'net', name: "Latence Réseau", unit: "ms", def: "--", desc: "RTT estimé" }
     ];
 
-    uiRefs['compass'] = { val: document.getElementById('val-compass'), src: document.getElementById('src-compass'), box: document.getElementById('box-compass') };
+    const refs = {}; // Stockage des références DOM pour perf
 
+    // --- INITIALISATION UI ---
     instruments.forEach(inst => {
         const div = document.createElement('div');
-        div.className = 'instrument';
+        div.className = 'instrument inactive';
+        div.id = `card-${inst.id}`;
         div.innerHTML = `
             <div class="label">${inst.name}</div>
-            <div class="source-tag" id="src-${inst.id}">...</div>
-            <div class="value" id="val-${inst.id}">${inst.def}</div>
-            <div class="unit">${inst.unit}</div>
+            <div class="value" id="v-${inst.id}">${inst.def}<span class="unit">${inst.unit}</span></div>
+            <div class="meta">${inst.desc}</div>
         `;
-        grid.appendChild(div);
-        uiRefs[inst.id] = { val: document.getElementById(`val-${inst.id}`), src: document.getElementById(`src-${inst.id}`), box: div };
+        ui.grid.appendChild(div);
+        refs[inst.id] = document.getElementById(`v-${inst.id}`);
+        refs[`box-${inst.id}`] = div;
     });
 
-    const getCardinal = (angle) => {
-        const directions = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
-        return directions[Math.round(angle / 45) % 8];
-    };
+    // --- LOGIQUE BOUSSOLE & NIVELLEMENT ---
+    let heading = 0;
+    let smoothHeading = 0;
+    let tiltLR = 0; // Gamma
+    let tiltFB = 0; // Beta
 
-    const updateVal = (id, value, source = "API") => {
-        if (!uiRefs[id]) return;
-        uiRefs[id].val.innerText = value;
-        uiRefs[id].src.innerText = source;
-        uiRefs[id].box.classList.add(source === "CAM" || source === "Sim" ? "simulated" : "active");
-        dataStore[id] = true;
-    };
-
-    // Boucle de rendu stabilisée
-    const loop = () => {
-        let diff = targetHeading - currentHeading;
-        if (diff > 180) diff -= 360;
-        if (diff < -180) diff += 360;
-        currentHeading += diff * lerpFactor;
+    const updateCompass = (alpha, beta, gamma, accuracy) => {
+        // 1. Gestion du Cap (Heading) avec lissage
+        let target = alpha;
+        // Correction du passage 359->0
+        let delta = target - smoothHeading;
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
+        smoothHeading += delta * 0.1; // Facteur lissage (0.1 = fluide)
         
-        // Rotation inverse : le cadran reste au Nord, le smartphone bouge
-        vizCompass.style.transform = `rotate(${-currentHeading}deg)`;
+        ui.compass.style.transform = `rotate(${-smoothHeading}deg)`;
+        ui.valCompass.innerText = Math.round(smoothHeading < 0 ? smoothHeading + 360 : smoothHeading) + "°";
+        ui.valCardinal.innerText = getCardinal(smoothHeading);
+
+        // 2. Gestion du Niveau à Bulle (Spirit Level)
+        // Limite visuelle à 20 degrés pour garder la bulle dans le cercle
+        const maxTilt = 20; 
+        const bX = Math.max(-maxTilt, Math.min(maxTilt, gamma || 0)); // Gauche/Droite
+        const bY = Math.max(-maxTilt, Math.min(maxTilt, beta || 0));  // Avant/Arrière
         
-        requestAnimationFrame(loop);
+        // Tilt total pour l'affichage numérique
+        const totalTilt = Math.sqrt(beta*beta + gamma*gamma).toFixed(1);
+        ui.valTilt.innerText = `Inclin: ${totalTilt}°`;
+        ui.valTilt.style.color = totalTilt < 5 ? 'var(--success)' : 'var(--warn)';
+
+        // Déplacement de la bulle (inversé pour simuler une bulle d'air)
+        ui.bubble.style.transform = `translate(calc(-50% + ${bX}px), calc(-50% + ${bY}px))`;
+
+        // 3. Status Calibration
+        if (accuracy && accuracy > 15) { // Valeur arbitraire, dépend de l'API
+             setCalib(true);
+        } else if (totalTilt > 10) {
+             setCalib(false, "METTRE À PLAT");
+        } else {
+             setCalib(true, "OK");
+        }
     };
 
-    const initModernSensors = () => {
-        const configs = [
-            { class: 'Magnetometer', id: 'mag', map: s => `${s.x.toFixed(0)}|${s.y.toFixed(0)}|${s.z.toFixed(0)}`, src: "Hard" },
-            { class: 'Accelerometer', id: 'acc', map: s => `${s.x.toFixed(1)}|${s.y.toFixed(1)}|${s.z.toFixed(1)}`, src: "Hard" },
-            { class: 'Gyroscope', id: 'gyro', map: s => `${s.x.toFixed(1)}|${s.y.toFixed(1)}|${s.z.toFixed(1)}`, src: "Hard" },
-            { class: 'GravitySensor', id: 'grav', map: s => `${s.x.toFixed(1)}|${s.y.toFixed(1)}|${s.z.toFixed(1)}`, src: "Hard" },
-            { class: 'PressureSensor', id: 'pressure', map: s => s.pressure.toFixed(1), src: "Hard" }
-        ];
-        configs.forEach(c => {
-            if (c.class in window) {
-                try {
-                    const s = new window[c.class]({ frequency: 60 });
-                    s.onreading = () => updateVal(c.id, c.map(s), c.src);
-                    s.start();
-                } catch(e) {}
-            }
-        });
+    const getCardinal = (h) => {
+        h = h < 0 ? h + 360 : h;
+        const dirs = ["N","NE","E","SE","S","SO","O","NO"];
+        return dirs[Math.round(h/45) % 8];
     };
 
-    const initLegacy = () => {
-        const handle = (e) => {
+    const setCalib = (isOk, text) => {
+        ui.calibMsg.className = isOk ? "calib-status calib-ok" : "calib-status calib-bad";
+        ui.calibMsg.innerText = text || (isOk ? "CALIBRÉ" : "CALIBRAGE REQUIS");
+    };
+
+    // --- MOTEUR DE CAPTEURS ---
+    const startSensors = async () => {
+        // 1. DeviceOrientation (Boussole + Niveau)
+        const handleOrient = (e) => {
             let h = 0;
-            let s = "Rel";
-            if (e.webkitCompassHeading) { h = e.webkitCompassHeading; s = "iOS"; }
-            else if (e.alpha && e.absolute) { h = 360 - e.alpha; s = "Andr"; }
-            else if (e.alpha) { h = e.alpha; }
+            // Priorité: WebkitCompass (iOS) > Absolute (Android) > Alpha
+            if (e.webkitCompassHeading) h = e.webkitCompassHeading;
+            else if (e.alpha && e.absolute) h = 360 - e.alpha;
+            else if (e.alpha) h = e.alpha; // Fallback relatif
 
-            targetHeading = h;
-            updateVal('compass', Math.round(h) + "°", s);
-            dirText.innerText = "Direction: " + getCardinal(h);
+            updateCompass(h, e.beta, e.gamma, e.webkitCompassAccuracy);
         };
-        window.addEventListener('deviceorientationabsolute', handle, true);
-        window.addEventListener('deviceorientation', handle, true);
+        
+        // Double écoute pour compatibilité max
+        window.addEventListener('deviceorientationabsolute', handleOrient, true);
+        window.addEventListener('deviceorientation', handleOrient, true);
 
-        if ('geolocation' in navigator) {
-            navigator.geolocation.watchPosition(p => {
-                updateVal('gps', `${p.coords.latitude.toFixed(4)},${p.coords.longitude.toFixed(4)}`, "GPS");
-                updateVal('alt', (p.coords.altitude || 0).toFixed(1), "GPS");
-                updateVal('speed', ((p.coords.speed || 0) * 3.6).toFixed(1), "GPS");
-            });
+        // 2. DeviceMotion (Accéléromètre avancé)
+        window.addEventListener('devicemotion', (e) => {
+            const a = e.accelerationIncludingGravity || {x:0, y:0, z:0};
+            const r = e.rotationRate || {alpha:0, beta:0, gamma:0};
+
+            // Calcul G-Force Totale
+            const gTotal = Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z) / 9.81;
+            updateDisplay('acc_g', gTotal.toFixed(3));
+            refs['box-acc_g'].className = "instrument active";
+            // Couleur dynamique si choc détecté (> 2G)
+            refs['v-acc_g'].style.color = gTotal > 1.5 ? 'var(--danger)' : '#fff';
+
+            updateDisplay('acc_raw', `${f(a.x)} | ${f(a.y)} | ${f(a.z)}`);
+            updateDisplay('gyro', `${f(r.alpha)} | ${f(r.beta)} | ${f(r.gamma)}`);
+            refs['box-acc_raw'].className = "instrument active";
+        });
+
+        // 3. Magnétomètre Brut (Si dispo pour interférences)
+        if ('Magnetometer' in window) {
+            try {
+                const mag = new Magnetometer({frequency: 10});
+                mag.onreading = () => {
+                    // Force totale du champ (µT)
+                    const totalField = Math.sqrt(mag.x**2 + mag.y**2 + mag.z**2);
+                    updateDisplay('mag_field', totalField.toFixed(1));
+                    refs['box-mag_field'].className = "instrument active";
+                    // Alerte interférence magnétique domestique (> 60µT environ)
+                    if (totalField > 60) setCalib(false, "INTERFÉRENCE MAG.");
+                };
+                mag.start();
+            } catch(e){}
         }
 
+        // 4. GPS & Baromètre
+        if ('geolocation' in navigator) {
+            navigator.geolocation.watchPosition(p => {
+                updateDisplay('gps', `${p.coords.latitude.toFixed(5)} / ${p.coords.longitude.toFixed(5)}`);
+                if(p.coords.altitude) updateDisplay('alt', p.coords.altitude.toFixed(1));
+                updateDisplay('gps_acc', `±${p.coords.accuracy.toFixed(0)}`);
+                refs['box-gps'].className = "instrument active";
+            }, null, {enableHighAccuracy:true});
+        }
+
+        if ('PressureSensor' in window) {
+            try {
+                const baro = new PressureSensor({frequency: 1});
+                baro.onreading = () => {
+                    updateDisplay('baro', baro.pressure.toFixed(1));
+                    refs['box-baro'].className = "instrument active";
+                };
+                baro.start();
+            } catch(e){}
+        }
+
+        // 5. Batterie & Réseau
         if (navigator.getBattery) {
             navigator.getBattery().then(b => {
-                const up = () => { updateVal('bat_level', (b.level * 100).toFixed(0), "API"); updateVal('bat_state', b.charging ? "Charge" : "Secteur", "API"); };
+                const up = () => {
+                   updateDisplay('bat', `${(b.level*100).toFixed(0)}% ${b.charging?'⚡':''}`);
+                   refs['box-bat'].className = "instrument active";
+                };
                 b.onlevelchange = up; b.onchargingchange = up; up();
             });
         }
+        if (navigator.connection) {
+            updateDisplay('net', navigator.connection.rtt || "?");
+            refs['box-net'].className = "instrument active";
+        }
+
+        // 6. Lumière (Fallback)
+        initLight();
     };
 
-    // Fallback Lux via Camera
-    const initLux = async () => {
+    const updateDisplay = (id, val) => {
+        if (refs[id]) refs[id].innerHTML = val + `<span class="unit">${instruments.find(i=>i.id===id).unit}</span>`;
+    };
+
+    const f = (n) => (n||0).toFixed(1);
+
+    const initLight = async () => {
         if ('AmbientLightSensor' in window) {
             const als = new AmbientLightSensor();
-            als.onreading = () => updateVal('lux', als.illuminance, "ALS");
+            als.onreading = () => {
+                updateDisplay('lux', als.illuminance.toFixed(0));
+                refs['box-lux'].className = "instrument active";
+            };
             als.start();
         } else {
+            // Fallback caméra (simplifié pour perf)
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                const v = document.getElementById('hidden-video');
-                const c = document.getElementById('lux-canvas');
-                const ctx = c.getContext('2d', {willReadFrequently:true});
-                v.srcObject = stream;
-                const calc = () => {
-                    if (v.readyState === 4) {
-                        ctx.drawImage(v, 0,0,50,50);
-                        const d = ctx.getImageData(0,0,50,50).data;
-                        let s = 0;
-                        for(let i=0; i<d.length; i+=16) s += (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114);
-                        updateVal('lux', Math.round((s/(d.length/16))*2), "CAM");
+                const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+                const vid = document.getElementById('hidden-video');
+                const cvs = document.getElementById('lux-canvas');
+                const ctx = cvs.getContext('2d', {willReadFrequently:true});
+                vid.srcObject = stream;
+                
+                const loopLux = () => {
+                    if (vid.readyState === 4) {
+                        ctx.drawImage(vid,0,0,30,30);
+                        const d = ctx.getImageData(0,0,30,30).data;
+                        let l = 0;
+                        for(let i=0; i<d.length; i+=4) l += (d[i]+d[i+1]+d[i+2])/3;
+                        updateDisplay('lux', Math.round(l/(d.length/4)*2) + " (Cam)");
+                        refs['box-lux'].className = "instrument active";
                     }
-                    requestAnimationFrame(calc);
+                    setTimeout(loopLux, 500); // 2Hz suffisant
                 };
-                calc();
-            } catch(e) { updateVal('lux', "N/A", "ERR"); }
+                loopLux();
+            } catch(e) { updateDisplay('lux', "N/A"); }
         }
     };
 
+    // --- BOUTON START ---
     document.getElementById('btn-start').onclick = async () => {
-        document.getElementById('btn-start').style.display = 'none';
-        if (typeof DeviceOrientationEvent?.requestPermission === 'function') await DeviceOrientationEvent.requestPermission();
-        initModernSensors();
-        initLegacy();
-        initLux();
-        requestAnimationFrame(loop);
-        log.innerText = "Audit Haute Précision Actif.";
+        const btn = document.getElementById('btn-start');
+        btn.style.display = 'none';
+        
+        // Permission iOS
+        if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
+            ui.log.innerText = "Demande permission iOS...";
+            try { await DeviceOrientationEvent.requestPermission(); } catch(e){}
+        }
+        
+        startSensors();
+        ui.log.innerText = "Système de mesure actif. Gardez l'appareil à plat.";
     };
 }
 </script>
