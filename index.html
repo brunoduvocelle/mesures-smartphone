@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE SENSOR PANOPTICON</title>
+    <title>SENSORY PANOPTICON v5.0</title>
     <style>
         :root {
             --bg: #000;
@@ -24,9 +24,9 @@
             padding: 10px;
             font-size: 10px;
             overflow-x: hidden;
+            user-select: none;
         }
 
-        /* --- LAYOUT --- */
         header { border-bottom: 2px solid var(--accent); margin-bottom: 15px; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: flex-end; }
         h1 { margin: 0; font-size: 14px; color: var(--accent); letter-spacing: 1px; }
         
@@ -35,30 +35,28 @@
 
         .dashboard { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
 
-        /* --- CARDS --- */
-        .card { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 10px; display: flex; flex-direction: column; gap: 6px; transition: border-color 0.3s; }
-        .card.active { border-color: #333; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 10px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; position: relative; }
+        .card:active { transform: scale(0.98); background: #1a1a1a; }
+        .card::after { content: "RESET"; position: absolute; top: 5px; right: 5px; font-size: 7px; color: var(--dim); opacity: 0; }
+        .card:hover::after { opacity: 1; }
+        
         .card-label { font-size: 8px; font-weight: 800; color: var(--accent); opacity: 0.8; }
 
-        /* --- DATA TABLE --- */
         .sensor-table { width: 100%; border-collapse: collapse; }
         .sensor-table th { font-size: 7px; color: var(--dim); text-align: right; padding-bottom: 4px; font-weight: normal; }
-        .sensor-table td { padding: 2px 0; }
         .axis-label { color: var(--dim); font-size: 8px; width: 12px; }
         .v-cur { color: var(--val); font-weight: bold; text-align: right; font-family: monospace; }
         .v-avg { color: var(--text); font-size: 9px; text-align: right; opacity: 0.6; }
         .v-max { color: var(--warn); font-size: 9px; text-align: right; }
 
-        /* --- SPECIAL WIDGETS --- */
         .compass-box { grid-column: 1 / -1; background: #080808; display: flex; align-items: center; padding: 15px; border: 1px solid var(--accent); border-radius: 6px; gap: 20px; }
-        .compass-disc { width: 60px; height: 60px; border: 2px solid var(--accent); border-radius: 50%; position: relative; flex-shrink: 0; }
-        .compass-needle { position: absolute; top: 50%; left: 50%; width: 2px; height: 30px; background: red; transform-origin: top; left: calc(50% - 1px); top: 50%; transition: transform 0.1s linear; }
+        .compass-disc { width: 80px; height: 80px; border: 2px solid var(--accent); border-radius: 50%; position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center;}
+        .compass-needle { width: 2px; height: 40px; background: red; position: absolute; transform-origin: bottom center; bottom: 50%; border-radius: 2px; transition: transform 0.1s linear; }
+        .needle-south { width: 2px; height: 40px; background: white; position: absolute; transform-origin: top center; top: 50%; border-radius: 2px; }
 
         #btn-start { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9999; color: var(--accent); border: 2px solid var(--accent); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; }
-
         .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #333; display: inline-block; margin-right: 5px; }
         .status-on { background: var(--accent); box-shadow: 0 0 5px var(--accent); }
-
         #hidden-video { display: none; }
     </style>
 </head>
@@ -66,21 +64,23 @@
 
     <button id="btn-start">
         <span>[ INITIALISER LA MATRICE ]</span>
-        <span style="font-size: 10px; margin-top: 10px; font-weight: normal; color: #fff;">Autorisez l'accès aux capteurs & caméra</span>
+        <span style="font-size: 10px; margin-top: 10px; font-weight: normal; color: #fff;">Pointez le haut du téléphone vers l'objectif</span>
     </button>
 
     <header>
-        <h1>SENSORY OVERVIEW v4.0</h1>
+        <h1>SENSORY PANOPTICON v5.0</h1>
         <div id="uptime" style="font-size: 9px; color: var(--dim)">UPTIME: 00:00:00</div>
     </header>
 
     <div class="compass-box">
-        <div class="compass-disc">
+        <div class="compass-disc" id="ui-compass-reset">
             <div id="needle" class="compass-needle"></div>
+            <div id="needle-s" class="needle-south"></div>
+            <div style="position:absolute; top:2px; color:red; font-size:8px; font-weight:bold">N</div>
         </div>
         <div style="flex-grow:1">
             <div id="comp-deg" style="font-size: 24px; font-weight: bold; color: #fff;">000°</div>
-            <div id="comp-card" style="color: var(--accent); font-size: 10px; letter-spacing: 2px;">NORD-OUEST</div>
+            <div id="comp-card" style="color: var(--accent); font-size: 10px; letter-spacing: 2px;">--</div>
         </div>
         <div style="text-align: right">
             <div class="card-label">ORIENTATION</div>
@@ -90,8 +90,8 @@
 
     <div class="section-title">Cinématique & Dynamique</div>
     <div class="dashboard">
-        <div class="card" id="card-acc">
-            <div class="card-label"><span class="status-dot" id="dot-acc"></span>ACCÉLÉROMÈTRE (m/s²)</div>
+        <div class="card" onclick="resetSensor('acc')">
+            <div class="card-label"><span class="status-dot" id="dot-acc"></span>ACCÉLÉROMÈTRE</div>
             <table class="sensor-table">
                 <tr><th></th><th>INST</th><th>LISSÉ</th><th>MAX</th></tr>
                 <tr id="row-acc-x"><td class="axis-label">X</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
@@ -99,8 +99,8 @@
                 <tr id="row-acc-z"><td class="axis-label">Z</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
             </table>
         </div>
-        <div class="card" id="card-gyro">
-            <div class="card-label"><span class="status-dot" id="dot-gyro"></span>GYROSCOPE (rad/s)</div>
+        <div class="card" onclick="resetSensor('gyro')">
+            <div class="card-label"><span class="status-dot" id="dot-gyro"></span>GYROSCOPE</div>
             <table class="sensor-table">
                 <tr><th></th><th>INST</th><th>LISSÉ</th><th>MAX</th></tr>
                 <tr id="row-gyro-x"><td class="axis-label">X</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
@@ -110,46 +110,24 @@
         </div>
     </div>
 
-    <div class="section-title">Magnétisme & Environnement</div>
+    <div class="section-title">Géolocalisation & Magnétisme</div>
     <div class="dashboard">
-        <div class="card" id="card-mag">
-            <div class="card-label"><span class="status-dot" id="dot-mag"></span>MAGNÉTOMÈTRE (µT)</div>
+        <div class="card" onclick="resetGPS()">
+            <div class="card-label">GPS STATS (km/h)</div>
+            <table class="sensor-table">
+                <tr><th></th><th>INST</th><th>MOY</th><th>MAX</th></tr>
+                <tr><td class="axis-label">V</td><td id="gps-spd" class="v-cur">-</td><td id="gps-avg" class="v-avg">-</td><td id="gps-max" class="v-max">-</td></tr>
+            </table>
+            <div id="gps-pos" style="font-size: 8px; color: var(--dim); margin-top:5px">LAT/LON: --</div>
+        </div>
+        <div class="card" onclick="resetSensor('mag')">
+            <div class="card-label"><span class="status-dot" id="dot-mag"></span>MAGNÉTOMÈTRE</div>
             <table class="sensor-table">
                 <tr><th></th><th>INST</th><th>LISSÉ</th><th>MAX</th></tr>
                 <tr id="row-mag-x"><td class="axis-label">X</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
                 <tr id="row-mag-y"><td class="axis-label">Y</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
                 <tr id="row-mag-z"><td class="axis-label">Z</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
             </table>
-        </div>
-        <div class="card">
-            <div class="card-label">AUTRES CAPTEURS</div>
-            <div id="env-data" style="line-height: 1.8; font-size: 11px;">
-                LUX: <span id="val-lux" class="v-cur">--</span><br>
-                PROXIMITÉ: <span id="val-prox" class="v-cur">--</span><br>
-                PRESSION: <span id="val-pres" class="v-cur">--</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="section-title">Géolocalisation & Système</div>
-    <div class="dashboard">
-        <div class="card">
-            <div class="card-label">POSITION GPS</div>
-            <div id="gps-data" style="line-height: 1.6;">
-                LAT: <span id="gps-lat" class="v-cur">--</span><br>
-                LON: <span id="gps-lon" class="v-cur">--</span><br>
-                ALT: <span id="gps-alt" class="v-cur">--</span> m<br>
-                SPD: <span id="gps-spd" class="v-cur">--</span> km/h
-            </div>
-        </div>
-        <div class="card">
-            <div class="card-label">ÉTAT SYSTÈME</div>
-            <div id="sys-data" style="line-height: 1.6;">
-                BAT: <span id="sys-bat" class="v-cur">--</span><br>
-                NET: <span id="sys-net" class="v-cur">--</span><br>
-                CPU: <span id="sys-cpu" class="v-cur">--</span> Cores<br>
-                RAM: <span id="sys-ram" class="v-cur">--</span> GB
-            </div>
         </div>
     </div>
 
@@ -158,10 +136,12 @@
 
 <script>
 {
-    // --- CLASSE DE TRAITEMENT UNIFIÉ ---
     class SensorHub {
         constructor(size = 30) {
             this.size = size;
+            this.reset();
+        }
+        reset() {
             this.axes = {
                 x: { cur: 0, buffer: [], max: 0 },
                 y: { cur: 0, buffer: [], max: 0 },
@@ -189,11 +169,17 @@
         }
     }
 
-    const hubs = {
-        acc: new SensorHub(),
-        gyro: new SensorHub(),
-        mag: new SensorHub()
+    const hubs = { acc: new SensorHub(), gyro: new SensorHub(), mag: new SensorHub() };
+
+    // GPS Statistique
+    const gpsStats = {
+        history: [],
+        max: 0,
+        reset: function() { this.history = []; this.max = 0; }
     };
+
+    window.resetSensor = (id) => hubs[id].reset();
+    window.resetGPS = () => gpsStats.reset();
 
     const updateUI = (type) => {
         document.getElementById(`dot-${type}`).classList.add('status-on');
@@ -206,95 +192,63 @@
         });
     };
 
-    // --- INITIALISATION ---
     const run = async () => {
-        // 1. MOUVEMENT
         window.addEventListener('devicemotion', e => {
             const a = e.acceleration || {x:0, y:0, z:0};
             hubs.acc.push(a.x, a.y, a.z); updateUI('acc');
-
             const g = e.rotationRate || {alpha:0, beta:0, gamma:0};
             hubs.gyro.push(g.alpha, g.beta, g.gamma); updateUI('gyro');
         });
 
-        // 2. ORIENTATION & BOUSSOLE
         let sHead = 0;
         window.addEventListener('deviceorientation', e => {
+            // Correction : Sur mobile, 0° est le Nord. 
+            // On veut que l'aiguille pointe vers le Nord par rapport au haut du mobile.
             let h = e.webkitCompassHeading || (360 - e.alpha) || 0;
+            
             let diff = h - sHead;
             if(diff > 180) diff -= 360; if(diff < -180) diff += 360;
             sHead += diff * 0.1;
             const finalH = (sHead + 360) % 360;
 
+            // L'aiguille doit tourner en sens inverse de la rotation du téléphone pour rester fixe au Nord
             document.getElementById('needle').style.transform = `rotate(${-finalH}deg)`;
+            document.getElementById('needle-s').style.transform = `rotate(${-finalH}deg)`;
+            
             document.getElementById('comp-deg').innerText = Math.round(finalH).toString().padStart(3, '0') + "°";
             document.getElementById('comp-card').innerText = ["NORD", "N-EST", "EST", "S-EST", "SUD", "S-OUEST", "OUEST", "N-OUEST"][Math.round(finalH / 45) % 8];
             document.getElementById('orient-data').innerHTML = `α: ${e.alpha?.toFixed(1)}<br>β: ${e.beta?.toFixed(1)}<br>γ: ${e.gamma?.toFixed(1)}`;
         });
 
-        // 3. MAGNETOMÈTRE (API MODERNE)
         if ('Magnetometer' in window) {
             try {
                 const mag = new Magnetometer({frequency: 20});
-                mag.onreading = () => {
-                    hubs.mag.push(mag.x, mag.y, mag.z);
-                    updateUI('mag');
-                };
+                mag.onreading = () => { hubs.mag.push(mag.x, mag.y, mag.z); updateUI('mag'); };
                 mag.start();
-            } catch(err) { console.log("Mag API access denied"); }
+            } catch(err) {}
         }
 
-        // 4. GPS
         navigator.geolocation.watchPosition(p => {
-            document.getElementById('gps-lat').innerText = p.coords.latitude.toFixed(5);
-            document.getElementById('gps-lon').innerText = p.coords.longitude.toFixed(5);
-            document.getElementById('gps-alt').innerText = p.coords.altitude?.toFixed(1) || "0";
-            document.getElementById('gps-spd').innerText = ((p.coords.speed || 0) * 3.6).toFixed(1);
+            const speed = (p.coords.speed || 0) * 3.6; // km/h
+            if(speed > 0.5) gpsStats.history.push(speed);
+            if(speed > gpsStats.max) gpsStats.max = speed;
+
+            const avg = gpsStats.history.length > 0 
+                ? gpsStats.history.reduce((a,b)=>a+b,0) / gpsStats.history.length 
+                : 0;
+
+            document.getElementById('gps-spd').innerText = speed.toFixed(1);
+            document.getElementById('gps-avg').innerText = avg.toFixed(1);
+            document.getElementById('gps-max').innerText = gpsStats.max.toFixed(1);
+            document.getElementById('gps-pos').innerText = `${p.coords.latitude.toFixed(4)}, ${p.coords.longitude.toFixed(4)} (±${p.coords.accuracy.toFixed(0)}m)`;
         }, null, {enableHighAccuracy: true});
 
-        // 5. SYSTÈME & ENV
-        document.getElementById('sys-cpu').innerText = navigator.hardwareConcurrency || "--";
-        document.getElementById('sys-ram').innerText = navigator.deviceMemory || "--";
-
-        setInterval(async () => {
-            // Batterie
-            if(navigator.getBattery) {
-                const b = await navigator.getBattery();
-                document.getElementById('sys-bat').innerText = (b.level * 100).toFixed(0) + "%" + (b.charging ? " (CHG)" : "");
-            }
-            // Réseau
-            const n = navigator.connection || {};
-            document.getElementById('sys-net').innerText = (n.effectiveType || "offline").toUpperCase();
-        }, 2000);
-
-        // 6. LUX FALLBACK (CAMERA)
-        initLux();
-
-        // 7. UPTIME
         const startT = Date.now();
         setInterval(() => {
             const sec = Math.floor((Date.now() - startT) / 1000);
-            const h = Math.floor(sec / 3600);
-            const m = Math.floor((sec % 3600) / 60);
-            const s = sec % 60;
+            const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
             document.getElementById('uptime').innerText = `UPTIME: ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
         }, 1000);
-    };
-
-    const initLux = async () => {
-        try {
-            const s = await navigator.mediaDevices.getUserMedia({video: {facingMode:'environment'}});
-            const v = document.getElementById('hidden-video'); v.srcObject = s;
-            const ctx = document.getElementById('lux-canvas').getContext('2d');
-            setInterval(() => {
-                if(v.readyState === 4) {
-                    ctx.drawImage(v, 0, 0, 30, 30);
-                    const d = ctx.getImageData(0,0,30,30).data;
-                    let lum = 0; for(let i=0; i<d.length; i+=4) lum += (d[i]+d[i+1]+d[i+2])/3;
-                    document.getElementById('val-lux').innerText = Math.round(lum/(d.length/4));
-                }
-            }, 1000);
-        } catch(e) { document.getElementById('val-lux').innerText = "BLOCKED"; }
     };
 
     document.getElementById('btn-start').onclick = async () => {
