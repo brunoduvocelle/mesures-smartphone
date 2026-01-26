@@ -3,269 +3,307 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FULL SENSOR BLACK BOX - XYZ ADVANCED</title>
+    <title>ULTIMATE SENSOR PANOPTICON</title>
     <style>
         :root {
-            --bg: #050505;
-            --card: #101010;
-            --border: #333;
+            --bg: #000;
+            --card: #0d0d0d;
+            --border: #222;
             --accent: #00ff9d;
-            --text: #cccccc;
-            --label: #666666;
+            --text: #aaa;
+            --val: #fff;
             --warn: #ff9d00;
+            --dim: #444;
         }
 
         body {
             background-color: var(--bg);
             color: var(--text);
-            font-family: 'Consolas', 'Monaco', monospace;
+            font-family: 'Segoe UI', 'Roboto', 'Monaco', monospace;
             margin: 0;
             padding: 10px;
-            padding-bottom: 80px;
             font-size: 10px;
+            overflow-x: hidden;
         }
 
-        h1 { color: var(--accent); text-align: center; font-size: 14px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin: 5px 0; text-transform: uppercase; }
+        /* --- LAYOUT --- */
+        header { border-bottom: 2px solid var(--accent); margin-bottom: 15px; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: flex-end; }
+        h1 { margin: 0; font-size: 14px; color: var(--accent); letter-spacing: 1px; }
         
-        button#btn-init {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: var(--accent); color: #000;
-            border: none; padding: 15px 30px;
-            font-weight: bold; font-size: 14px;
-            border-radius: 4px; cursor: pointer;
-            box-shadow: 0 0 20px rgba(0, 255, 157, 0.2);
-            z-index: 1000;
-        }
+        .section-title { color: var(--accent); font-size: 9px; font-weight: bold; text-transform: uppercase; margin: 15px 0 5px 0; display: flex; align-items: center; }
+        .section-title::after { content: ""; height: 1px; background: var(--border); flex-grow: 1; margin-left: 10px; }
 
-        .dashboard {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 8px;
-            margin-top: 15px;
-        }
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
 
-        /* COMPASS */
-        .compass-module {
-            grid-column: 1 / -1;
-            background: #111;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-around;
-        }
-        .compass-viz { width: 80px; height: 80px; position: relative; }
-        .compass-ring { width: 100%; height: 100%; border: 2px solid #333; border-radius: 50%; position: relative; }
-        .needle-n { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 3px; height: 12px; background: #ff4444; }
-        .phone-marker { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 8px solid var(--accent); z-index: 10; }
+        /* --- CARDS --- */
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 10px; display: flex; flex-direction: column; gap: 6px; transition: border-color 0.3s; }
+        .card.active { border-color: #333; }
+        .card-label { font-size: 8px; font-weight: 800; color: var(--accent); opacity: 0.8; }
 
-        /* CARDS */
-        .card { background: var(--card); border: 1px solid var(--border); padding: 8px; border-radius: 3px; position: relative; }
-        .card.active { border-color: var(--accent); }
-        .label { color: var(--accent); font-size: 9px; font-weight: bold; margin-bottom: 6px; border-bottom: 1px solid #222; }
-        
-        .data-grid { display: grid; grid-template-columns: 15px 1fr 1fr 1fr; gap: 2px; align-items: center; }
-        .col-h { color: var(--label); font-size: 7px; text-align: center; }
-        .row-l { color: var(--label); font-weight: bold; font-size: 9px; }
-        .val-cur { color: #fff; text-align: right; }
-        .val-avg { color: #888; text-align: right; }
-        .val-max { color: var(--warn); text-align: right; }
+        /* --- DATA TABLE --- */
+        .sensor-table { width: 100%; border-collapse: collapse; }
+        .sensor-table th { font-size: 7px; color: var(--dim); text-align: right; padding-bottom: 4px; font-weight: normal; }
+        .sensor-table td { padding: 2px 0; }
+        .axis-label { color: var(--dim); font-size: 8px; width: 12px; }
+        .v-cur { color: var(--val); font-weight: bold; text-align: right; font-family: monospace; }
+        .v-avg { color: var(--text); font-size: 9px; text-align: right; opacity: 0.6; }
+        .v-max { color: var(--warn); font-size: 9px; text-align: right; }
 
-        .bar-container { height: 2px; background: #222; margin-top: 8px; width: 100%; }
-        .bar-fill { height: 100%; background: var(--accent); width: 0%; }
+        /* --- SPECIAL WIDGETS --- */
+        .compass-box { grid-column: 1 / -1; background: #080808; display: flex; align-items: center; padding: 15px; border: 1px solid var(--accent); border-radius: 6px; gap: 20px; }
+        .compass-disc { width: 60px; height: 60px; border: 2px solid var(--accent); border-radius: 50%; position: relative; flex-shrink: 0; }
+        .compass-needle { position: absolute; top: 50%; left: 50%; width: 2px; height: 30px; background: red; transform-origin: top; left: calc(50% - 1px); top: 50%; transition: transform 0.1s linear; }
 
-        #hidden-cam { display: none; }
+        #btn-start { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9999; color: var(--accent); border: 2px solid var(--accent); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; }
+
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #333; display: inline-block; margin-right: 5px; }
+        .status-on { background: var(--accent); box-shadow: 0 0 5px var(--accent); }
+
+        #hidden-video { display: none; }
     </style>
 </head>
 <body>
 
-    <h1>ARCHITECTE SENSOR CORE v3.0</h1>
+    <button id="btn-start">
+        <span>[ INITIALISER LA MATRICE ]</span>
+        <span style="font-size: 10px; margin-top: 10px; font-weight: normal; color: #fff;">Autorisez l'accès aux capteurs & caméra</span>
+    </button>
 
-    <div class="compass-module">
-        <div class="compass-viz">
-            <div class="phone-marker"></div>
-            <div class="compass-ring" id="ui-ring">
-                <div class="needle-n"></div>
-            </div>
+    <header>
+        <h1>SENSORY OVERVIEW v4.0</h1>
+        <div id="uptime" style="font-size: 9px; color: var(--dim)">UPTIME: 00:00:00</div>
+    </header>
+
+    <div class="compass-box">
+        <div class="compass-disc">
+            <div id="needle" class="compass-needle"></div>
         </div>
-        <div style="text-align:right">
-            <div class="label" style="border:none">CAP MAGNÉTIQUE</div>
-            <div id="ui-heading" style="font-size:22px; font-weight:bold; color:#fff">---°</div>
-            <div id="ui-cardinal" style="color:var(--accent)">---</div>
-            <div id="ui-tilt" style="color:var(--warn); font-size:9px">Tilt: --°</div>
+        <div style="flex-grow:1">
+            <div id="comp-deg" style="font-size: 24px; font-weight: bold; color: #fff;">000°</div>
+            <div id="comp-card" style="color: var(--accent); font-size: 10px; letter-spacing: 2px;">NORD-OUEST</div>
+        </div>
+        <div style="text-align: right">
+            <div class="card-label">ORIENTATION</div>
+            <div id="orient-data" style="font-size: 9px; line-height: 1.4;">α: 0<br>β: 0<br>γ: 0</div>
         </div>
     </div>
 
-    <div class="dashboard" id="grid"></div>
+    <div class="section-title">Cinématique & Dynamique</div>
+    <div class="dashboard">
+        <div class="card" id="card-acc">
+            <div class="card-label"><span class="status-dot" id="dot-acc"></span>ACCÉLÉROMÈTRE (m/s²)</div>
+            <table class="sensor-table">
+                <tr><th></th><th>INST</th><th>LISSÉ</th><th>MAX</th></tr>
+                <tr id="row-acc-x"><td class="axis-label">X</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
+                <tr id="row-acc-y"><td class="axis-label">Y</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
+                <tr id="row-acc-z"><td class="axis-label">Z</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
+            </table>
+        </div>
+        <div class="card" id="card-gyro">
+            <div class="card-label"><span class="status-dot" id="dot-gyro"></span>GYROSCOPE (rad/s)</div>
+            <table class="sensor-table">
+                <tr><th></th><th>INST</th><th>LISSÉ</th><th>MAX</th></tr>
+                <tr id="row-gyro-x"><td class="axis-label">X</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
+                <tr id="row-gyro-y"><td class="axis-label">Y</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
+                <tr id="row-gyro-z"><td class="axis-label">Z</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
+            </table>
+        </div>
+    </div>
 
-    <button id="btn-init">INITIALISER LES CAPTEURS</button>
-    <video id="hidden-cam" autoplay playsinline muted></video>
+    <div class="section-title">Magnétisme & Environnement</div>
+    <div class="dashboard">
+        <div class="card" id="card-mag">
+            <div class="card-label"><span class="status-dot" id="dot-mag"></span>MAGNÉTOMÈTRE (µT)</div>
+            <table class="sensor-table">
+                <tr><th></th><th>INST</th><th>LISSÉ</th><th>MAX</th></tr>
+                <tr id="row-mag-x"><td class="axis-label">X</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
+                <tr id="row-mag-y"><td class="axis-label">Y</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
+                <tr id="row-mag-z"><td class="axis-label">Z</td><td class="v-cur">-</td><td class="v-avg">-</td><td class="v-max">-</td></tr>
+            </table>
+        </div>
+        <div class="card">
+            <div class="card-label">AUTRES CAPTEURS</div>
+            <div id="env-data" style="line-height: 1.8; font-size: 11px;">
+                LUX: <span id="val-lux" class="v-cur">--</span><br>
+                PROXIMITÉ: <span id="val-prox" class="v-cur">--</span><br>
+                PRESSION: <span id="val-pres" class="v-cur">--</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-title">Géolocalisation & Système</div>
+    <div class="dashboard">
+        <div class="card">
+            <div class="card-label">POSITION GPS</div>
+            <div id="gps-data" style="line-height: 1.6;">
+                LAT: <span id="gps-lat" class="v-cur">--</span><br>
+                LON: <span id="gps-lon" class="v-cur">--</span><br>
+                ALT: <span id="gps-alt" class="v-cur">--</span> m<br>
+                SPD: <span id="gps-spd" class="v-cur">--</span> km/h
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-label">ÉTAT SYSTÈME</div>
+            <div id="sys-data" style="line-height: 1.6;">
+                BAT: <span id="sys-bat" class="v-cur">--</span><br>
+                NET: <span id="sys-net" class="v-cur">--</span><br>
+                CPU: <span id="sys-cpu" class="v-cur">--</span> Cores<br>
+                RAM: <span id="sys-ram" class="v-cur">--</span> GB
+            </div>
+        </div>
+    </div>
+
+    <video id="hidden-video" autoplay playsinline muted></video>
     <canvas id="lux-canvas" width="30" height="30" style="display:none;"></canvas>
 
 <script>
 {
-    // --- LOGIQUE DE TRAITEMENT XYZ ---
-    class MultiAxisProcessor {
-        constructor(size = 20) {
+    // --- CLASSE DE TRAITEMENT UNIFIÉ ---
+    class SensorHub {
+        constructor(size = 30) {
             this.size = size;
-            this.data = {
+            this.axes = {
                 x: { cur: 0, buffer: [], max: 0 },
                 y: { cur: 0, buffer: [], max: 0 },
                 z: { cur: 0, buffer: [], max: 0 }
             };
         }
-
-        update(x, y, z) {
-            ['x', 'y', 'z'].forEach((axis, i) => {
-                const val = [x, y, z][i] || 0;
-                const d = this.data[axis];
-                d.cur = val;
-                d.buffer.push(val);
-                if(d.buffer.length > this.size) d.buffer.shift();
-                if(Math.abs(val) > Math.abs(d.max)) d.max = val;
-            });
+        push(x, y, z) {
+            const vals = { x, y, z };
+            for(let a in vals) {
+                const v = vals[a] || 0;
+                this.axes[a].cur = v;
+                this.axes[a].buffer.push(v);
+                if(this.axes[a].buffer.length > this.size) this.axes[a].buffer.shift();
+                if(Math.abs(v) > Math.abs(this.axes[a].max)) this.axes[a].max = v;
+            }
         }
-
-        getAvg(axis) {
-            const b = this.data[axis].buffer;
-            return b.reduce((a, b) => a + b, 0) / b.length || 0;
+        get(axis) {
+            const b = this.axes[axis].buffer;
+            const avg = b.reduce((a, b) => a + b, 0) / b.length || 0;
+            return {
+                cur: this.axes[axis].cur.toFixed(2),
+                avg: avg.toFixed(2),
+                max: this.axes[axis].max.toFixed(2)
+            };
         }
     }
 
-    const metrics = [
-        { id: 'acc', name: "ACCÉLÉRATION (m/s²)", axes: true },
-        { id: 'gyro', name: "GYROSCOPE (rad/s)", axes: true },
-        { id: 'mag', name: "MAGNÉTOMÈTRE (µT)", axes: true },
-        { id: 'gps', name: "GPS (Vitesse/Alt/Prec)", axes: false },
-        { id: 'sys', name: "SYSTÈME (Bat/Net/Lux)", axes: false }
-    ];
-
-    const procs = {
-        acc: new MultiAxisProcessor(),
-        gyro: new MultiAxisProcessor(),
-        mag: new MultiAxisProcessor()
+    const hubs = {
+        acc: new SensorHub(),
+        gyro: new SensorHub(),
+        mag: new SensorHub()
     };
 
-    // --- UI GEN ---
-    const grid = document.getElementById('grid');
-    const refs = {};
-
-    metrics.forEach(m => {
-        const card = document.createElement('div');
-        card.className = 'card';
-        let html = `<div class="label">${m.name}</div>`;
-        
-        if(m.axes) {
-            html += `
-                <div class="data-grid">
-                    <div></div><div class="col-h">INST</div><div class="col-h">LISSÉ</div><div class="col-h">MAX</div>
-                    <div class="row-l">X</div><div class="val-cur" id="${m.id}-x-c">0</div><div class="val-avg" id="${m.id}-x-a">0</div><div class="val-max" id="${m.id}-x-m">0</div>
-                    <div class="row-l">Y</div><div class="val-cur" id="${m.id}-y-c">0</div><div class="val-avg" id="${m.id}-y-a">0</div><div class="val-max" id="${m.id}-y-m">0</div>
-                    <div class="row-l">Z</div><div class="val-cur" id="${m.id}-z-c">0</div><div class="val-avg" id="${m.id}-z-a">0</div><div class="val-max" id="${m.id}-z-m">0</div>
-                </div>`;
-        } else {
-            html += `<div id="${m.id}-content" style="white-space:pre; line-height:1.4">Attente...</div>`;
-        }
-        card.innerHTML = html;
-        grid.appendChild(card);
-        refs[m.id] = card;
-    });
-
-    const refreshXYZ = (id) => {
-        const p = procs[id];
-        ['x', 'y', 'z'].forEach(axis => {
-            document.getElementById(`${id}-${axis}-c`).innerText = p.data[axis].cur.toFixed(2);
-            document.getElementById(`${id}-${axis}-a`).innerText = p.getAvg(axis).toFixed(2);
-            document.getElementById(`${id}-${axis}-m`).innerText = p.data[axis].max.toFixed(2);
+    const updateUI = (type) => {
+        document.getElementById(`dot-${type}`).classList.add('status-on');
+        ['x', 'y', 'z'].forEach(a => {
+            const data = hubs[type].get(a);
+            const row = document.getElementById(`row-${type}-${a}`);
+            row.querySelector('.v-cur').innerText = data.cur;
+            row.querySelector('.v-avg').innerText = data.avg;
+            row.querySelector('.v-max').innerText = data.max;
         });
-        refs[id].classList.add('active');
     };
 
-    // --- ENGINE ---
-    const start = async () => {
-        // Accéléromètre & Gyro
-        window.addEventListener('devicemotion', (e) => {
+    // --- INITIALISATION ---
+    const run = async () => {
+        // 1. MOUVEMENT
+        window.addEventListener('devicemotion', e => {
             const a = e.acceleration || {x:0, y:0, z:0};
-            procs.acc.update(a.x, a.y, a.z);
-            refreshXYZ('acc');
+            hubs.acc.push(a.x, a.y, a.z); updateUI('acc');
 
-            const r = e.rotationRate || {alpha:0, beta:0, gamma:0};
-            procs.gyro.update(r.alpha, r.beta, r.gamma);
-            refreshXYZ('gyro');
+            const g = e.rotationRate || {alpha:0, beta:0, gamma:0};
+            hubs.gyro.push(g.alpha, g.beta, g.gamma); updateUI('gyro');
         });
 
-        // Magnétomètre
-        if ('Magnetometer' in window) {
-            try {
-                const mag = new Magnetometer({frequency: 10});
-                mag.onreading = () => {
-                    procs.mag.update(mag.x, mag.y, mag.z);
-                    refreshXYZ('mag');
-                };
-                mag.start();
-            } catch(e) {}
-        }
-
-        // Boussole (Lissage Spécial)
+        // 2. ORIENTATION & BOUSSOLE
         let sHead = 0;
-        window.addEventListener('deviceorientation', (e) => {
+        window.addEventListener('deviceorientation', e => {
             let h = e.webkitCompassHeading || (360 - e.alpha) || 0;
             let diff = h - sHead;
             if(diff > 180) diff -= 360; if(diff < -180) diff += 360;
-            sHead += diff * 0.08;
+            sHead += diff * 0.1;
             const finalH = (sHead + 360) % 360;
-            
-            document.getElementById('ui-ring').style.transform = `rotate(${-finalH}deg)`;
-            document.getElementById('ui-heading').innerText = Math.round(finalH) + "°";
-            document.getElementById('ui-cardinal').innerText = ["NORD", "N-EST", "EST", "S-EST", "SUD", "S-OUEST", "OUEST", "N-OUEST"][Math.round(finalH / 45) % 8];
-            document.getElementById('ui-tilt').innerText = `Tilt: ${Math.max(Math.abs(e.beta||0), Math.abs(e.gamma||0)).toFixed(1)}°`;
+
+            document.getElementById('needle').style.transform = `rotate(${-finalH}deg)`;
+            document.getElementById('comp-deg').innerText = Math.round(finalH).toString().padStart(3, '0') + "°";
+            document.getElementById('comp-card').innerText = ["NORD", "N-EST", "EST", "S-EST", "SUD", "S-OUEST", "OUEST", "N-OUEST"][Math.round(finalH / 45) % 8];
+            document.getElementById('orient-data').innerHTML = `α: ${e.alpha?.toFixed(1)}<br>β: ${e.beta?.toFixed(1)}<br>γ: ${e.gamma?.toFixed(1)}`;
         });
 
-        // GPS
+        // 3. MAGNETOMÈTRE (API MODERNE)
+        if ('Magnetometer' in window) {
+            try {
+                const mag = new Magnetometer({frequency: 20});
+                mag.onreading = () => {
+                    hubs.mag.push(mag.x, mag.y, mag.z);
+                    updateUI('mag');
+                };
+                mag.start();
+            } catch(err) { console.log("Mag API access denied"); }
+        }
+
+        // 4. GPS
         navigator.geolocation.watchPosition(p => {
-            const c = p.coords;
-            document.getElementById('gps-content').innerText = 
-                `VIT: ${(c.speed*3.6||0).toFixed(1)} km/h\nALT: ${c.altitude?.toFixed(0)||'--'} m\nACC: ±${c.accuracy.toFixed(0)} m`;
-            refs.gps.classList.add('active');
+            document.getElementById('gps-lat').innerText = p.coords.latitude.toFixed(5);
+            document.getElementById('gps-lon').innerText = p.coords.longitude.toFixed(5);
+            document.getElementById('gps-alt').innerText = p.coords.altitude?.toFixed(1) || "0";
+            document.getElementById('gps-spd').innerText = ((p.coords.speed || 0) * 3.6).toFixed(1);
         }, null, {enableHighAccuracy: true});
 
-        // Système
-        setInterval(async () => {
-            const bat = navigator.getBattery ? await navigator.getBattery() : {level:0, charging:false};
-            const conn = navigator.connection || {};
-            const net = conn.effectiveType || conn.type || "N/A";
-            document.getElementById('sys-content').innerText = 
-                `BAT: ${(bat.level*100).toFixed(0)}% (${bat.charging?'Charge':'USB'})\nNET: ${net.toUpperCase()} (${conn.downlink||0}Mb)\nLUX: ${window.lastLux || '--'}`;
-            refs.sys.classList.add('active');
-        }, 1000);
+        // 5. SYSTÈME & ENV
+        document.getElementById('sys-cpu').innerText = navigator.hardwareConcurrency || "--";
+        document.getElementById('sys-ram').innerText = navigator.deviceMemory || "--";
 
+        setInterval(async () => {
+            // Batterie
+            if(navigator.getBattery) {
+                const b = await navigator.getBattery();
+                document.getElementById('sys-bat').innerText = (b.level * 100).toFixed(0) + "%" + (b.charging ? " (CHG)" : "");
+            }
+            // Réseau
+            const n = navigator.connection || {};
+            document.getElementById('sys-net').innerText = (n.effectiveType || "offline").toUpperCase();
+        }, 2000);
+
+        // 6. LUX FALLBACK (CAMERA)
         initLux();
+
+        // 7. UPTIME
+        const startT = Date.now();
+        setInterval(() => {
+            const sec = Math.floor((Date.now() - startT) / 1000);
+            const h = Math.floor(sec / 3600);
+            const m = Math.floor((sec % 3600) / 60);
+            const s = sec % 60;
+            document.getElementById('uptime').innerText = `UPTIME: ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        }, 1000);
     };
 
     const initLux = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode:'environment'}});
-            const v = document.getElementById('hidden-cam'); v.srcObject = stream;
+            const s = await navigator.mediaDevices.getUserMedia({video: {facingMode:'environment'}});
+            const v = document.getElementById('hidden-video'); v.srcObject = s;
             const ctx = document.getElementById('lux-canvas').getContext('2d');
             setInterval(() => {
                 if(v.readyState === 4) {
                     ctx.drawImage(v, 0, 0, 30, 30);
                     const d = ctx.getImageData(0,0,30,30).data;
-                    let l = 0; for(let i=0; i<d.length; i+=4) l += (d[i]+d[i+1]+d[i+2])/3;
-                    window.lastLux = Math.round(l/(d.length/4));
+                    let lum = 0; for(let i=0; i<d.length; i+=4) lum += (d[i]+d[i+1]+d[i+2])/3;
+                    document.getElementById('val-lux').innerText = Math.round(lum/(d.length/4));
                 }
             }, 1000);
-        } catch(e) {}
+        } catch(e) { document.getElementById('val-lux').innerText = "BLOCKED"; }
     };
 
-    document.getElementById('btn-init').onclick = async () => {
-        document.getElementById('btn-init').style.display = 'none';
+    document.getElementById('btn-start').onclick = async () => {
+        document.getElementById('btn-start').style.display = 'none';
         if(typeof DeviceOrientationEvent?.requestPermission === 'function') {
             await DeviceOrientationEvent.requestPermission();
             await DeviceMotionEvent.requestPermission();
         }
-        start();
+        run();
     };
 }
 </script>
