@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SENSORY BLACK BOX v6.0</title>
+    <title>SENSORY BLACK BOX v7.0</title>
     <style>
         :root {
             --bg: #050505;
@@ -59,10 +59,21 @@
         }
 
         .compass-viz { width: 100px; height: 100px; position: relative; }
-        .compass-ring { width: 100%; height: 100%; border: 2px solid #333; border-radius: 50%; position: relative; transition: transform 0.1s linear; }
-        .needle-n { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 15px; background: #ff4444; }
-        .needle-s { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 15px; background: #eee; }
-        .phone-marker { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid var(--accent); z-index: 10; }
+        .compass-ring { 
+            width: 100%; height: 100%; 
+            border: 2px solid #333; border-radius: 50%; 
+            position: relative; 
+            transition: transform 0.1s linear;
+        }
+        .needle-n { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 25px; background: #ff4444; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+        .needle-s { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 25px; background: #eee; clip-path: polygon(0% 0%, 100% 0%, 50% 100%); }
+        
+        .phone-marker { 
+            position: absolute; top: -10px; left: 50%; transform: translateX(-50%); 
+            width: 0; height: 0; border-left: 6px solid transparent; 
+            border-right: 6px solid transparent; border-bottom: 10px solid var(--accent); 
+            z-index: 10; 
+        }
 
         /* --- CARDS --- */
         .card {
@@ -82,17 +93,16 @@
         .label { color: var(--label); font-size: 9px; text-transform: uppercase; font-weight: bold; margin-bottom: 4px; }
         .val { color: var(--text); font-size: 11px; white-space: pre-wrap; font-weight: bold; line-height: 1.2; }
         .val-max { color: var(--warn); font-size: 9px; margin-top: 2px; border-top: 1px solid #222; padding-top: 2px; }
-        .unit { color: #555; font-size: 9px; margin-left: 2px; }
         
         .bar-container { height: 3px; background: #222; margin-top: 5px; width: 100%; }
         .bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s; }
 
-        #hidden-cam { display: none; }
+        #calib-warn { color: var(--warn); font-size: 8px; font-weight: bold; display: none; }
     </style>
 </head>
 <body>
 
-    <h1>MONITEUR SYSTÈME COMPLET</h1>
+    <h1>SENSORY BLACK BOX v7.0</h1>
 
     <div class="compass-module">
         <div class="compass-viz">
@@ -102,9 +112,10 @@
             </div>
         </div>
         <div class="compass-stats" style="text-align: right; width: 60%;">
-            <div class="label">CAP (NORDIQUE FIXE)</div>
+            <div class="label">CAP RÉEL (CORRIGÉ)</div>
             <div style="font-size: 24px; color: #fff; font-weight: bold;" id="ui-heading">---°</div>
-            <div id="ui-cardinal" style="color: var(--accent);">---</div>
+            <div id="ui-cardinal" style="color: var(--accent); font-size: 14px;">---</div>
+            <div id="calib-warn">⚠️ ÉTALONNAGE REQUIS (FAIRE UN 8)</div>
             <div id="ui-tilt" style="margin-top:5px; color:#888;">Tilt: 0°</div>
         </div>
     </div>
@@ -112,17 +123,13 @@
     <div class="dashboard" id="grid"></div>
 
     <button id="btn-init">DÉMARRER L'ACQUISITION</button>
-    <video id="hidden-cam" autoplay playsinline muted></video>
+    <video id="hidden-cam" autoplay playsinline muted style="display:none;"></video>
     <canvas id="lux-canvas" width="30" height="30" style="display:none;"></canvas>
 
 <script>
 {
-    // --- MOTEUR STATISTIQUE (INST/AVG/MAX) ---
     class DataEngine {
-        constructor(size = 20) {
-            this.size = size;
-            this.reset();
-        }
+        constructor(size = 20) { this.size = size; this.reset(); }
         reset() {
             this.buffer = { x: [], y: [], z: [], single: [] };
             this.max = { x: 0, y: 0, z: 0, single: 0 };
@@ -131,15 +138,13 @@
         update(x, y = null, z = null) {
             if (y !== null && z !== null) {
                 ['x','y','z'].forEach((a, i) => {
-                    let v = [x,y,z][i];
-                    this.cur[a] = v;
+                    let v = [x,y,z][i]; this.cur[a] = v;
                     this.buffer[a].push(v);
                     if(this.buffer[a].length > this.size) this.buffer[a].shift();
                     if(Math.abs(v) > Math.abs(this.max[a])) this.max[a] = v;
                 });
             } else {
-                this.cur.single = x;
-                this.buffer.single.push(x);
+                this.cur.single = x; this.buffer.single.push(x);
                 if(this.buffer.single.length > this.size) this.buffer.single.shift();
                 if(Math.abs(x) > Math.abs(this.max.single)) this.max.single = x;
             }
@@ -153,35 +158,28 @@
 
     const metrics = [
         { id: 'acc_lin', name: "Accél. Linéaire", unit: "m/s²", type: 'xyz' },
-        { id: 'acc_grav', name: "Accél. + Gravité", unit: "m/s²", type: 'xyz' },
-        { id: 'g_force', name: "Force G Totale", unit: "G", bar: true, type: 'single' },
         { id: 'gyro', name: "Gyroscope", unit: "rad/s", type: 'xyz' },
         { id: 'mag_raw', name: "Magnétomètre Brut", unit: "µT", type: 'xyz' },
-        { id: 'mag_total', name: "Force Champ Mag.", unit: "µT", bar: true, type: 'single' },
+        { id: 'mag_total', name: "Champ Magnétique", unit: "µT", bar: true, type: 'single' },
         { id: 'gps_spd', name: "Vitesse GPS", unit: "km/h", type: 'single' },
         { id: 'gps_pos', name: "GPS Lat/Lon", unit: "", type: 'text' },
-        { id: 'gps_alt', name: "Altitude GPS", unit: "m", type: 'single' },
-        { id: 'gps_acc', name: "Précision GPS", unit: "m", type: 'single' },
-        { id: 'lux', name: "Luminosité", unit: "Lux", bar: true, type: 'single' },
-        { id: 'net_rtt', name: "Ping Réseau", unit: "ms", type: 'single' },
-        { id: 'net_type', name: "Connexion", unit: "", type: 'text' },
+        { id: 'gps_alt', name: "Altitude", unit: "m", type: 'single' },
         { id: 'bat_lvl', name: "Batterie", unit: "%", bar: true, type: 'single' },
-        { id: 'ram', name: "Mémoire RAM", unit: "Gio", type: 'text' },
-        { id: 'touch', name: "Toucher (F/R)", unit: "", type: 'text' }
+        { id: 'net_type', name: "Connexion", unit: "", type: 'text' },
+        { id: 'lux', name: "Luminosité", unit: "Lux", bar: true, type: 'single' },
+        { id: 'touch', name: "Force Toucher", unit: "", type: 'text' }
     ];
 
     const engines = {};
     const uiRefs = {};
     const fmt = (n) => (n || 0).toFixed(2);
 
-    // --- INIT UI ---
     const grid = document.getElementById('grid');
     metrics.forEach(m => {
         engines[m.id] = new DataEngine();
         const div = document.createElement('div');
         div.className = 'card';
         div.onclick = () => { engines[m.id].reset(); };
-        
         div.innerHTML = `
             <div class="label">${m.name}</div>
             <div class="val" id="v-${m.id}">--</div>
@@ -189,11 +187,7 @@
             ${m.bar ? `<div class="bar-container"><div class="bar-fill" id="bar-${m.id}"></div></div>` : ''}
         `;
         grid.appendChild(div);
-        uiRefs[m.id] = { 
-            val: document.getElementById(`v-${m.id}`), 
-            max: document.getElementById(`m-${m.id}`),
-            bar: document.getElementById(`bar-${m.id}`)
-        };
+        uiRefs[m.id] = { val: document.getElementById(`v-${m.id}`), max: document.getElementById(`m-${m.id}`), bar: document.getElementById(`bar-${m.id}`) };
     });
 
     const refreshUI = (id, percent = null) => {
@@ -205,40 +199,36 @@
             uiRefs[id].max.innerText = `MAX X:${fmt(dx.max)} Y:${fmt(dy.max)} Z:${fmt(dz.max)}`;
         } else if (m.type === 'single') {
             const d = eng.get('single');
-            uiRefs[id].val.innerHTML = `${fmt(d.avg)} <span class="unit">${m.unit}</span>`;
-            uiRefs[id].max.innerText = `MAX: ${fmt(d.max)} ${m.unit}`;
+            uiRefs[id].val.innerHTML = `${fmt(d.avg)} <span style="font-size:8px">${m.unit}</span>`;
+            uiRefs[id].max.innerText = `MAX: ${fmt(d.max)}`;
             if(percent !== null && uiRefs[id].bar) uiRefs[id].bar.style.width = percent + "%";
         }
     };
 
-    // --- MOTEUR CAPTEURS ---
     const startEngine = async () => {
         window.addEventListener('devicemotion', (e) => {
             const al = e.acceleration || {x:0, y:0, z:0};
             engines.acc_lin.update(al.x, al.y, al.z); refreshUI('acc_lin');
-
-            const ag = e.accelerationIncludingGravity || {x:0, y:0, z:0};
-            engines.acc_grav.update(ag.x, ag.y, ag.z); refreshUI('acc_grav');
-
-            const gf = Math.sqrt(ag.x**2 + ag.y**2 + ag.z**2) / 9.81;
-            engines.g_force.update(gf); refreshUI('g_force', (gf/2)*100);
-
             const r = e.rotationRate || {alpha:0, beta:0, gamma:0};
             engines.gyro.update(r.alpha, r.beta, r.gamma); refreshUI('gyro');
         });
 
         let smoothHead = 0;
         window.addEventListener('deviceorientation', (e) => {
-            let h = e.webkitCompassHeading || (360 - e.alpha) || 0;
-            let diff = h - smoothHead;
+            // CORRECTION 180° : Si le Nord est à l'opposé, on ajuste l'alpha
+            let heading = e.webkitCompassHeading || (360 - e.alpha);
+            
+            // Correction du décalage constaté par l'utilisateur
+            heading = (heading + 180) % 360; 
+
+            let diff = heading - smoothHead;
             if(diff > 180) diff -= 360; if(diff < -180) diff += 360;
             smoothHead += diff * 0.1;
             const finalH = (smoothHead + 360) % 360;
 
             document.getElementById('ui-ring').style.transform = `rotate(${-finalH}deg)`;
             document.getElementById('ui-heading').innerText = Math.round(finalH) + "°";
-            const dirs = ["NORD", "N-EST", "EST", "S-EST", "SUD", "S-OUEST", "OUEST", "N-OUEST"];
-            document.getElementById('ui-cardinal').innerText = dirs[Math.round(finalH / 45) % 8];
+            document.getElementById('ui-cardinal').innerText = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"][Math.round(finalH / 45) % 8];
             document.getElementById('ui-tilt').innerText = `Tilt: ${Math.max(Math.abs(e.beta||0), Math.abs(e.gamma||0)).toFixed(0)}°`;
         });
 
@@ -249,6 +239,8 @@
                     engines.mag_raw.update(mag.x, mag.y, mag.z); refreshUI('mag_raw');
                     const tot = Math.sqrt(mag.x**2 + mag.y**2 + mag.z**2);
                     engines.mag_total.update(tot); refreshUI('mag_total', (tot/100)*100);
+                    // Détection besoin étalonnage (Champ anormal > 80µT ou < 20µT)
+                    document.getElementById('calib-warn').style.display = (tot > 80 || tot < 20) ? 'block' : 'none';
                 };
                 mag.start();
             } catch(e) {}
@@ -256,30 +248,19 @@
 
         navigator.geolocation.watchPosition(p => {
             const c = p.coords;
-            uiRefs.gps_pos.val.innerText = `${c.latitude.toFixed(5)}\n${c.longitude.toFixed(5)}`;
+            uiRefs.gps_pos.val.innerText = `${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}`;
             engines.gps_spd.update(c.speed * 3.6 || 0); refreshUI('gps_spd');
             engines.gps_alt.update(c.altitude || 0); refreshUI('gps_alt');
-            engines.gps_acc.update(c.accuracy || 0); refreshUI('gps_acc');
         }, null, { enableHighAccuracy: true });
 
-        // Système
         setInterval(async () => {
             if(navigator.getBattery) {
                 const b = await navigator.getBattery();
                 engines.bat_lvl.update(b.level * 100); refreshUI('bat_lvl', b.level*100);
             }
-            if(navigator.connection) {
-                const n = navigator.connection;
-                engines.net_rtt.update(n.rtt || 0); refreshUI('net_rtt');
-                uiRefs.net_type.val.innerText = `${n.effectiveType || '?'}\n${n.downlink || 0}Mbps`;
-            }
-            uiRefs.ram.val.innerText = (navigator.deviceMemory || "?") + " Gio";
-        }, 1000);
-
-        window.addEventListener('touchmove', e => {
-            const t = e.touches[0];
-            uiRefs.touch.val.innerText = `F:${t.force.toFixed(2)} R:${t.radiusX.toFixed(0)}`;
-        });
+            const n = navigator.connection || {};
+            uiRefs.net_type.val.innerText = `${(n.effectiveType || 'N/A').toUpperCase()}\n${n.downlink || 0} Mbps`;
+        }, 2000);
 
         initLux();
     };
@@ -294,11 +275,11 @@
                     ctx.drawImage(v, 0, 0, 30, 30);
                     const d = ctx.getImageData(0,0,30,30).data;
                     let l = 0; for(let i=0; i<d.length; i+=4) l += d[i];
-                    const val = Math.floor(l/(d.length/4) * 3);
-                    engines.lux.update(val); refreshUI('lux', (val/200)*100);
+                    const val = Math.floor(l/(d.length/4));
+                    engines.lux.update(val); refreshUI('lux', (val/255)*100);
                 }
             }, 1000);
-        } catch(e) { uiRefs.lux.val.innerText = "BLOCK"; }
+        } catch(e) {}
     };
 
     document.getElementById('btn-init').onclick = async () => {
