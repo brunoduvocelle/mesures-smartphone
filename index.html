@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SENSORY BLACK BOX v8.0 - EXPERT</title>
+    <title>SENSORY BLACK BOX v8.5 - AUTO</title>
     <style>
         :root {
             --bg: #050505;
@@ -24,12 +24,13 @@
             font-family: 'SF Mono', 'Consolas', monospace;
             margin: 0;
             padding: 10px;
-            padding-bottom: 90px;
+            padding-bottom: 20px;
             font-size: 10px;
             user-select: none;
+            overflow-x: hidden;
         }
 
-        h1 { color: var(--accent); text-align: left; font-size: 14px; margin: 0 0 15px 0; letter-spacing: 2px; }
+        h1 { color: var(--accent); text-align: left; font-size: 14px; margin: 0 0 10px 0; letter-spacing: 2px; }
 
         .dashboard {
             display: grid;
@@ -37,26 +38,28 @@
             gap: 8px;
         }
 
-        /* --- COMPASS MODULE (Full Width) --- */
+        /* --- BOUSSOLE HAUTE PRÉCISION --- */
         .compass-module {
             grid-column: span 2;
-            background: var(--card);
+            background: linear-gradient(145deg, #151515, #0a0a0a);
             border: 1px solid var(--border);
-            padding: 12px;
+            padding: 15px;
             display: flex;
             align-items: center;
             margin-bottom: 8px;
-            border-radius: 2px;
+            border-radius: 4px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
         }
-        .compass-viz { width: 80px; height: 80px; position: relative; margin-right: 15px; }
+        .compass-viz { width: 90px; height: 90px; position: relative; margin-right: 20px; flex-shrink: 0; }
         .compass-ring { 
-            width: 100%; height: 100%; border: 1px solid #333; border-radius: 50%; 
-            position: relative; transition: transform 0.1s linear;
+            width: 100%; height: 100%; border: 2px solid #333; border-radius: 50%; 
+            position: relative; will-change: transform;
         }
-        .needle-n { position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 2px; height: 35px; background: var(--axis-x); }
-        .needle-s { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 2px; height: 35px; background: #fff; }
+        .needle-n { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 3px; height: 37px; background: var(--axis-x); clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+        .needle-s { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 3px; height: 37px; background: #fff; clip-path: polygon(0% 0%, 100% 0%, 50% 100%); }
+        .center-dot { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 6px; height: 6px; background: var(--accent); border-radius: 50%; border: 2px solid var(--bg); }
 
-        /* --- CARDS & XYZ STACKING --- */
+        /* --- CARDS --- */
         .card {
             background: var(--card);
             border: 1px solid var(--border);
@@ -64,8 +67,7 @@
             display: flex;
             flex-direction: column;
             gap: 5px;
-            position: relative;
-            overflow: hidden;
+            border-radius: 2px;
         }
         .label { color: var(--label); font-size: 8px; text-transform: uppercase; letter-spacing: 1px; }
         
@@ -76,55 +78,50 @@
         .val-avg { color: var(--accent); font-size: 9px; opacity: 0.8; }
         .val-max { color: var(--warn); font-size: 9px; text-align: right; }
 
-        .single-val { font-size: 18px; font-weight: bold; color: var(--accent); margin: 5px 0; }
-        .sub-text { font-size: 9px; color: var(--label); }
+        .single-val { font-size: 18px; font-weight: bold; color: var(--accent); margin: 2px 0; }
+        .sub-text { font-size: 8px; color: var(--label); }
 
-        .bar-bg { width: 100%; height: 2px; background: #222; margin-top: 4px; }
-        .bar-fill { height: 100%; background: var(--accent); width: 0%; }
-
-        button#btn-init {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: var(--accent); color: #000; border: none; padding: 15px 40px;
-            font-weight: bold; font-size: 12px; border-radius: 2px; z-index: 1000;
-            box-shadow: 0 10px 30px rgba(0,255,157,0.3);
+        /* --- OVERLAYS --- */
+        #interaction-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            backdrop-filter: blur(5px); cursor: pointer;
         }
-
-        .header-xyz { display: grid; grid-template-columns: 12px 1fr 1fr 1fr; font-size: 7px; color: var(--label); margin-bottom: 2px; }
-        #calib-warn { color: var(--warn); font-size: 8px; animation: blink 1s infinite; display: none; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
-    <h1>SENSORY BLACK BOX <span style="color:#555">v8.0</span></h1>
+    <div id="interaction-overlay">
+        <div style="color: var(--accent); font-size: 14px; font-weight: bold; margin-bottom: 10px;">SYSTEM READY</div>
+        <div style="color: #fff; font-size: 10px;">TAP TO ACTIVATE SENSORS</div>
+    </div>
+
+    <h1>SENSORY BLACK BOX <span style="color:#555">v8.5</span></h1>
 
     <div class="compass-module">
         <div class="compass-viz">
             <div class="compass-ring" id="ui-ring">
-                <div class="needle-n"></div><div class="needle-s"></div>
+                <div class="needle-n"></div>
+                <div class="needle-s"></div>
+                <div class="center-dot"></div>
             </div>
         </div>
-        <div>
-            <div class="label">Heading</div>
-            <div id="ui-heading" style="font-size: 28px; font-weight: bold;">---°</div>
-            <div id="ui-cardinal" style="color: var(--accent); font-size: 12px;">---</div>
-            <div id="calib-warn">CALIBRATION REQUIS (8-SHAPE)</div>
+        <div style="flex-grow: 1;">
+            <div class="label">True Bearing (Filtered)</div>
+            <div id="ui-heading" style="font-size: 32px; font-weight: bold; color: #fff;">---°</div>
+            <div id="ui-cardinal" style="color: var(--accent); font-size: 14px; letter-spacing: 2px;">---</div>
+            <div id="ui-status" style="font-size: 8px; color: #555; margin-top: 5px;">SENSOR IDLE</div>
         </div>
     </div>
 
     <div class="dashboard" id="grid"></div>
-
-    <button id="btn-init">INITIALIZE SENSORS</button>
 
     <video id="hidden-cam" autoplay playsinline muted style="display:none;"></video>
     <canvas id="lux-canvas" width="30" height="30" style="display:none;"></canvas>
 
 <script>
 {
-    /**
-     * DataEngine gère le stockage circulaire pour la moyenne (1s à ~60fps = 60 points)
-     * et le tracking des valeurs maximales.
-     */
     class DataEngine {
         constructor(bufferSize = 60) {
             this.bufferSize = bufferSize;
@@ -163,33 +160,26 @@
         { id: 'accel', name: "Accéléromètre", unit: "m/s²", type: 'xyz' },
         { id: 'gyro', name: "Gyroscope", unit: "rad/s", type: 'xyz' },
         { id: 'mag', name: "Magnétomètre", unit: "µT", type: 'xyz' },
-        { id: 'gravity', name: "Gravité", unit: "m/s²", type: 'xyz' },
-        { id: 'lux', name: "Luminosité (Est.)", unit: "Lux", type: 'single', bar: true },
-        { id: 'prox', name: "Proximité", unit: "", type: 'single' },
+        { id: 'gravity', name: "Inclinaison", unit: "°", type: 'xyz' },
+        { id: 'lux', name: "Luminosité", unit: "Lux", type: 'single' },
+        { id: 'gps_spd', name: "Vitesse GPS", unit: "km/h", type: 'single' },
         { id: 'baro', name: "Pression", unit: "hPa", type: 'single' },
-        { id: 'temp', name: "Température", unit: "°C", type: 'single' },
-        { id: 'gps', name: "GPS Position", unit: "", type: 'text' },
-        { id: 'gps_alt', name: "Altitude (MSL)", unit: "m", type: 'single' },
-        { id: 'net', name: "Network Latency", unit: "ms", type: 'single' },
-        { id: 'memory', name: "JS Heap Use", unit: "MB", type: 'single', bar: true }
+        { id: 'memory', name: "JS Heap", unit: "MB", type: 'single' }
     ];
 
     const engines = {};
-    const fmt = (v) => v.toFixed(2);
+    const fmt = (v) => (v || 0).toFixed(2);
 
-    // Initialisation du DOM
+    // Build UI
     const grid = document.getElementById('grid');
     metrics.forEach(m => {
         engines[m.id] = new DataEngine();
         const card = document.createElement('div');
         card.className = 'card';
-        card.onclick = () => engines[m.id].reset();
-        
-        let content = `<div class="label">${m.name}</div>`;
+        card.innerHTML = `<div class="label">${m.name}</div>`;
         
         if (m.type === 'xyz') {
-            content += `
-                <div class="header-xyz"><div></div><div>CUR</div><div>AVG(1s)</div><div>MAX</div></div>
+            card.innerHTML += `
                 <div class="xyz-container">
                     ${['x', 'y', 'z'].map(axis => `
                         <div class="xyz-row">
@@ -197,132 +187,113 @@
                             <div class="val-cur" id="${m.id}-${axis}-cur">0.00</div>
                             <div class="val-avg" id="${m.id}-${axis}-avg">0.00</div>
                             <div class="val-max" id="${m.id}-${axis}-max">0.00</div>
-                        </div>
-                    `).join('')}
+                        </div>`).join('')}
                 </div>`;
-        } else if (m.type === 'single') {
-            content += `
-                <div class="single-val" id="${m.id}-s-cur">--</div>
-                <div class="sub-text">AVG: <span id="${m.id}-s-avg">--</span> | MAX: <span id="${m.id}-s-max">--</span> ${m.unit}</div>
-                ${m.bar ? `<div class="bar-bg"><div class="bar-fill" id="${m.id}-bar"></div></div>` : ''}`;
         } else {
-            content += `<div class="val-cur" id="${m.id}-text" style="font-size:9px; margin-top:5px;">Awaiting signal...</div>`;
+            card.innerHTML += `
+                <div class="single-val" id="${m.id}-s-cur">--</div>
+                <div class="sub-text">AVG: <span id="${m.id}-s-avg">--</span> | MAX: <span id="${m.id}-s-max">--</span></div>`;
         }
-        
-        card.innerHTML = content;
         grid.appendChild(card);
     });
 
-    const updateUI = () => {
+    let smoothHeading = 0;
+    const filterAlpha = 0.12; // Filtre passe-bas pour la boussole
+
+    const start = async () => {
+        document.getElementById('interaction-overlay').style.display = 'none';
+        document.getElementById('ui-status').innerText = "LIVE TELEMETRY";
+
+        // BOUSSOLE & ORIENTATION
+        window.addEventListener('deviceorientation', (e) => {
+            // webkitCompassHeading est le seul fiable sur iOS pour le Nord Magnétique
+            let rawHeading = e.webkitCompassHeading || (360 - e.alpha);
+            
+            // Logique de filtrage pour éviter les sauts brusques (passage 359->0)
+            let diff = rawHeading - smoothHeading;
+            if (diff > 180) diff -= 360;
+            if (diff < -180) diff += 360;
+            smoothHeading += diff * filterAlpha;
+            
+            const heading = (smoothHeading + 360) % 360;
+
+            document.getElementById('ui-ring').style.transform = `rotate(${-heading}deg)`;
+            document.getElementById('ui-heading').innerText = Math.round(heading) + "°";
+            document.getElementById('ui-cardinal').innerText = ["NORD", "N-EST", "EST", "S-EST", "SUD", "S-OUEST", "OUEST", "N-OUEST"][Math.round(heading / 45) % 8];
+            
+            // Inclinaison (Gravité relative)
+            engines.gravity.update(e.beta, e.gamma, 0);
+        }, true);
+
+        // MOTION
+        window.addEventListener('devicemotion', (e) => {
+            const a = e.accelerationIncludingGravity || {x:0, y:0, z:0};
+            engines.accel.update(a.x, a.y, a.z);
+            const r = e.rotationRate || {alpha:0, beta:0, gamma:0};
+            engines.gyro.update(r.alpha, r.beta, r.gamma);
+        });
+
+        // GPS & LUX
+        navigator.geolocation.watchPosition(p => {
+            engines.gps_spd.update((p.coords.speed || 0) * 3.6);
+        }, null, {enableHighAccuracy: true});
+
+        initLux();
+        requestAnimationFrame(loop);
+    };
+
+    const loop = () => {
         metrics.forEach(m => {
             const eng = engines[m.id];
             if (m.type === 'xyz') {
-                ['x', 'y', 'z'].forEach(axis => {
-                    const stats = eng.getStats(axis);
-                    document.getElementById(`${m.id}-${axis}-cur`).innerText = fmt(stats.cur);
-                    document.getElementById(`${m.id}-${axis}-avg`).innerText = fmt(stats.avg);
-                    document.getElementById(`${m.id}-${axis}-max`).innerText = fmt(stats.max);
+                ['x', 'y', 'z'].forEach(ax => {
+                    const s = eng.getStats(ax);
+                    document.getElementById(`${m.id}-${ax}-cur`).innerText = fmt(s.cur);
+                    document.getElementById(`${m.id}-${ax}-avg`).innerText = fmt(s.avg);
+                    document.getElementById(`${m.id}-${ax}-max`).innerText = fmt(s.max);
                 });
-            } else if (m.type === 'single') {
-                const stats = eng.getStats('s');
-                document.getElementById(`${m.id}-s-cur`).innerText = Math.round(stats.cur);
-                document.getElementById(`${m.id}-s-avg`).innerText = fmt(stats.avg);
-                document.getElementById(`${m.id}-s-max`).innerText = fmt(stats.max);
-                if (m.bar) {
-                    const bar = document.getElementById(`${m.id}-bar`);
-                    let p = (stats.cur / (m.id === 'lux' ? 255 : 100)) * 100;
-                    bar.style.width = Math.min(p, 100) + "%";
-                }
+            } else {
+                const s = eng.getStats('s');
+                document.getElementById(`${m.id}-s-cur`).innerText = Math.round(s.cur);
+                document.getElementById(`${m.id}-s-avg`).innerText = fmt(s.avg);
+                document.getElementById(`${m.id}-s-max`).innerText = fmt(s.max);
             }
         });
-        requestAnimationFrame(updateUI);
+        
+        if (performance.memory) engines.memory.update(performance.memory.usedJSHeapSize / 1048576);
+        requestAnimationFrame(loop);
     };
 
-    const startSensors = async () => {
-        // Mouvement et Rotation
-        window.addEventListener('devicemotion', (e) => {
-            const acc = e.accelerationIncludingGravity || {x:0, y:0, z:0};
-            engines.accel.update(acc.x, acc.y, acc.z);
-            
-            const rot = e.rotationRate || {alpha:0, beta:0, gamma:0};
-            engines.gyro.update(rot.alpha, rot.beta, rot.gamma);
-        });
-
-        // Orientation & Boussole
-        window.addEventListener('deviceorientation', (e) => {
-            let heading = e.webkitCompassHeading || (360 - e.alpha);
-            document.getElementById('ui-ring').style.transform = `rotate(${-heading}deg)`;
-            document.getElementById('ui-heading').innerText = Math.round(heading) + "°";
-            document.getElementById('ui-cardinal').innerText = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"][Math.round(heading / 45) % 8];
-            
-            // Simulation gravité via angles
-            const gx = Math.sin(e.gamma * Math.PI/180) * 9.81;
-            const gy = Math.sin(e.beta * Math.PI/180) * 9.81;
-            engines.gravity.update(gx, gy, 9.81 - Math.abs(gx+gy)/2);
-        });
-
-        // GPS
-        navigator.geolocation.watchPosition(p => {
-            const c = p.coords;
-            document.getElementById('gps-text').innerText = `${c.latitude.toFixed(5)}°N\n${c.longitude.toFixed(5)}°E\n±${c.accuracy.toFixed(0)}m`;
-            engines.gps_alt.update(c.altitude || 0);
-        }, null, {enableHighAccuracy: true});
-
-        // Magnétomètre (si API disponible)
-        if ('Magnetometer' in window) {
-            try {
-                const mag = new Magnetometer({frequency: 10});
-                mag.onreading = () => {
-                    engines.mag.update(mag.x, mag.y, mag.z);
-                    const total = Math.sqrt(mag.x**2 + mag.y**2 + mag.z**2);
-                    document.getElementById('calib-warn').style.display = (total > 100 || total < 20) ? 'block' : 'none';
-                };
-                mag.start();
-            } catch(e) {}
-        }
-
-        // Memory & Network
-        setInterval(() => {
-            if (performance.memory) {
-                engines.memory.update(performance.memory.usedJSHeapSize / 1048576);
-            }
-            const start = Date.now();
-            fetch('favicon.ico', { mode: 'no-cors' }).then(() => {
-                engines.net.update(Date.now() - start);
-            }).catch(() => {});
-        }, 3000);
-
-        // Luminosité via Caméra
-        initCameraLux();
-        updateUI();
-    };
-
-    const initCameraLux = async () => {
+    const initLux = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode:'environment'}});
+            const s = await navigator.mediaDevices.getUserMedia({video: {facingMode:'environment'}});
             const v = document.getElementById('hidden-cam');
-            v.srcObject = stream;
+            v.srcObject = s;
             const ctx = document.getElementById('lux-canvas').getContext('2d');
             setInterval(() => {
                 if(v.readyState === 4) {
                     ctx.drawImage(v, 0, 0, 30, 30);
                     const d = ctx.getImageData(0,0,30,30).data;
-                    let lum = 0;
-                    for(let i=0; i<d.length; i+=4) lum += (d[i] + d[i+1] + d[i+2]) / 3;
-                    engines.lux.update(lum / (d.length/4));
+                    let l = 0; for(let i=0; i<d.length; i+=4) l += (d[i]+d[i+1]+d[i+2])/3;
+                    engines.lux.update(l / (d.length/4));
                 }
-            }, 500);
+            }, 1000);
         } catch(e) {}
     };
 
-    document.getElementById('btn-init').onclick = async () => {
-        document.getElementById('btn-init').style.display = 'none';
-        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-            await DeviceOrientationEvent.requestPermission();
-            await DeviceMotionEvent.requestPermission();
-        }
-        startSensors();
-    };
+    // Auto-start attempt
+    window.addEventListener('load', () => {
+        const overlay = document.getElementById('interaction-overlay');
+        overlay.addEventListener('click', async () => {
+            if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
+                try {
+                    await DeviceOrientationEvent.requestPermission();
+                    await DeviceMotionEvent.requestPermission();
+                } catch(e) { console.error(e); }
+            }
+            start();
+        });
+    });
 }
 </script>
 </body>
