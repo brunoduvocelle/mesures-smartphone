@@ -3,292 +3,325 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SENSORY BLACK BOX v7.0</title>
+    <title>SENSORY BLACK BOX v8.0 - EXPERT</title>
     <style>
         :root {
             --bg: #050505;
-            --card: #101010;
-            --border: #333;
+            --card: #111111;
+            --border: #222;
             --accent: #00ff9d;
-            --text: #cccccc;
-            --label: #666666;
+            --text: #ffffff;
+            --label: #888888;
             --warn: #ff9d00;
+            --axis-x: #ff4444;
+            --axis-y: #44ff44;
+            --axis-z: #4444ff;
         }
 
         body {
             background-color: var(--bg);
             color: var(--text);
-            font-family: 'Consolas', 'Monaco', monospace;
+            font-family: 'SF Mono', 'Consolas', monospace;
             margin: 0;
             padding: 10px;
-            padding-bottom: 80px;
-            font-size: 11px;
+            padding-bottom: 90px;
+            font-size: 10px;
             user-select: none;
         }
 
-        h1 { color: var(--accent); text-align: center; font-size: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 5px; text-transform: uppercase; }
-        
-        button#btn-init {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: var(--accent); color: #000;
-            border: none; padding: 15px 30px;
-            font-weight: bold; font-size: 14px;
-            border-radius: 4px; cursor: pointer;
-            box-shadow: 0 0 20px rgba(0, 255, 157, 0.2);
-            z-index: 1000;
-        }
+        h1 { color: var(--accent); text-align: left; font-size: 14px; margin: 0 0 15px 0; letter-spacing: 2px; }
 
         .dashboard {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 6px;
-            margin-top: 15px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
         }
 
-        /* --- COMPASS --- */
+        /* --- COMPASS MODULE (Full Width) --- */
         .compass-module {
-            grid-column: 1 / -1;
-            background: #111;
+            grid-column: span 2;
+            background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 15px;
+            padding: 12px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
+            border-radius: 2px;
         }
-
-        .compass-viz { width: 100px; height: 100px; position: relative; }
+        .compass-viz { width: 80px; height: 80px; position: relative; margin-right: 15px; }
         .compass-ring { 
-            width: 100%; height: 100%; 
-            border: 2px solid #333; border-radius: 50%; 
-            position: relative; 
-            transition: transform 0.1s linear;
+            width: 100%; height: 100%; border: 1px solid #333; border-radius: 50%; 
+            position: relative; transition: transform 0.1s linear;
         }
-        .needle-n { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 25px; background: #ff4444; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
-        .needle-s { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 25px; background: #eee; clip-path: polygon(0% 0%, 100% 0%, 50% 100%); }
-        
-        .phone-marker { 
-            position: absolute; top: -10px; left: 50%; transform: translateX(-50%); 
-            width: 0; height: 0; border-left: 6px solid transparent; 
-            border-right: 6px solid transparent; border-bottom: 10px solid var(--accent); 
-            z-index: 10; 
-        }
+        .needle-n { position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 2px; height: 35px; background: var(--axis-x); }
+        .needle-s { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 2px; height: 35px; background: #fff; }
 
-        /* --- CARDS --- */
+        /* --- CARDS & XYZ STACKING --- */
         .card {
             background: var(--card);
             border: 1px solid var(--border);
-            padding: 8px;
-            border-radius: 3px;
-            cursor: pointer;
-            transition: border-color 0.2s;
+            padding: 10px;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            gap: 5px;
+            position: relative;
+            overflow: hidden;
         }
-        .card:active { background: #1a1a1a; }
-        .card.active { border-color: #555; }
+        .label { color: var(--label); font-size: 8px; text-transform: uppercase; letter-spacing: 1px; }
         
-        .label { color: var(--label); font-size: 9px; text-transform: uppercase; font-weight: bold; margin-bottom: 4px; }
-        .val { color: var(--text); font-size: 11px; white-space: pre-wrap; font-weight: bold; line-height: 1.2; }
-        .val-max { color: var(--warn); font-size: 9px; margin-top: 2px; border-top: 1px solid #222; padding-top: 2px; }
-        
-        .bar-container { height: 3px; background: #222; margin-top: 5px; width: 100%; }
-        .bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s; }
+        .xyz-container { display: flex; flex-direction: column; gap: 2px; }
+        .xyz-row { display: grid; grid-template-columns: 12px 1fr 1fr 1fr; align-items: center; gap: 4px; border-bottom: 1px solid #1a1a1a; padding-bottom: 2px; }
+        .axis-label { font-weight: bold; font-size: 8px; }
+        .val-cur { color: #fff; font-size: 11px; }
+        .val-avg { color: var(--accent); font-size: 9px; opacity: 0.8; }
+        .val-max { color: var(--warn); font-size: 9px; text-align: right; }
 
-        #calib-warn { color: var(--warn); font-size: 8px; font-weight: bold; display: none; }
+        .single-val { font-size: 18px; font-weight: bold; color: var(--accent); margin: 5px 0; }
+        .sub-text { font-size: 9px; color: var(--label); }
+
+        .bar-bg { width: 100%; height: 2px; background: #222; margin-top: 4px; }
+        .bar-fill { height: 100%; background: var(--accent); width: 0%; }
+
+        button#btn-init {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--accent); color: #000; border: none; padding: 15px 40px;
+            font-weight: bold; font-size: 12px; border-radius: 2px; z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0,255,157,0.3);
+        }
+
+        .header-xyz { display: grid; grid-template-columns: 12px 1fr 1fr 1fr; font-size: 7px; color: var(--label); margin-bottom: 2px; }
+        #calib-warn { color: var(--warn); font-size: 8px; animation: blink 1s infinite; display: none; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
-    <h1>SENSORY BLACK BOX v7.0</h1>
+    <h1>SENSORY BLACK BOX <span style="color:#555">v8.0</span></h1>
 
     <div class="compass-module">
         <div class="compass-viz">
-            <div class="phone-marker"></div>
             <div class="compass-ring" id="ui-ring">
                 <div class="needle-n"></div><div class="needle-s"></div>
             </div>
         </div>
-        <div class="compass-stats" style="text-align: right; width: 60%;">
-            <div class="label">CAP RÉEL (CORRIGÉ)</div>
-            <div style="font-size: 24px; color: #fff; font-weight: bold;" id="ui-heading">---°</div>
-            <div id="ui-cardinal" style="color: var(--accent); font-size: 14px;">---</div>
-            <div id="calib-warn">⚠️ ÉTALONNAGE REQUIS (FAIRE UN 8)</div>
-            <div id="ui-tilt" style="margin-top:5px; color:#888;">Tilt: 0°</div>
+        <div>
+            <div class="label">Heading</div>
+            <div id="ui-heading" style="font-size: 28px; font-weight: bold;">---°</div>
+            <div id="ui-cardinal" style="color: var(--accent); font-size: 12px;">---</div>
+            <div id="calib-warn">CALIBRATION REQUIS (8-SHAPE)</div>
         </div>
     </div>
 
     <div class="dashboard" id="grid"></div>
 
-    <button id="btn-init">DÉMARRER L'ACQUISITION</button>
+    <button id="btn-init">INITIALIZE SENSORS</button>
+
     <video id="hidden-cam" autoplay playsinline muted style="display:none;"></video>
     <canvas id="lux-canvas" width="30" height="30" style="display:none;"></canvas>
 
 <script>
 {
+    /**
+     * DataEngine gère le stockage circulaire pour la moyenne (1s à ~60fps = 60 points)
+     * et le tracking des valeurs maximales.
+     */
     class DataEngine {
-        constructor(size = 20) { this.size = size; this.reset(); }
+        constructor(bufferSize = 60) {
+            this.bufferSize = bufferSize;
+            this.reset();
+        }
         reset() {
-            this.buffer = { x: [], y: [], z: [], single: [] };
-            this.max = { x: 0, y: 0, z: 0, single: 0 };
-            this.cur = { x: 0, y: 0, z: 0, single: 0 };
+            this.data = {
+                x: { cur: 0, buf: [], max: 0 },
+                y: { cur: 0, buf: [], max: 0 },
+                z: { cur: 0, buf: [], max: 0 },
+                s: { cur: 0, buf: [], max: 0 }
+            };
         }
         update(x, y = null, z = null) {
             if (y !== null && z !== null) {
-                ['x','y','z'].forEach((a, i) => {
-                    let v = [x,y,z][i]; this.cur[a] = v;
-                    this.buffer[a].push(v);
-                    if(this.buffer[a].length > this.size) this.buffer[a].shift();
-                    if(Math.abs(v) > Math.abs(this.max[a])) this.max[a] = v;
-                });
+                this._push('x', x); this._push('y', y); this._push('z', z);
             } else {
-                this.cur.single = x; this.buffer.single.push(x);
-                if(this.buffer.single.length > this.size) this.buffer.single.shift();
-                if(Math.abs(x) > Math.abs(this.max.single)) this.max.single = x;
+                this._push('s', x);
             }
         }
-        get(axis = 'single') {
-            const b = this.buffer[axis];
-            const avg = b.reduce((a,b)=>a+b,0) / b.length || 0;
-            return { cur: this.cur[axis], avg: avg, max: this.max[axis] };
+        _push(key, val) {
+            const d = this.data[key];
+            d.cur = val;
+            d.buf.push(val);
+            if (d.buf.length > this.bufferSize) d.buf.shift();
+            if (Math.abs(val) > Math.abs(d.max)) d.max = val;
+        }
+        getStats(key) {
+            const d = this.data[key];
+            const avg = d.buf.reduce((a, b) => a + b, 0) / d.buf.length || 0;
+            return { cur: d.cur, avg: avg, max: d.max };
         }
     }
 
     const metrics = [
-        { id: 'acc_lin', name: "Accél. Linéaire", unit: "m/s²", type: 'xyz' },
+        { id: 'accel', name: "Accéléromètre", unit: "m/s²", type: 'xyz' },
         { id: 'gyro', name: "Gyroscope", unit: "rad/s", type: 'xyz' },
-        { id: 'mag_raw', name: "Magnétomètre Brut", unit: "µT", type: 'xyz' },
-        { id: 'mag_total', name: "Champ Magnétique", unit: "µT", bar: true, type: 'single' },
-        { id: 'gps_spd', name: "Vitesse GPS", unit: "km/h", type: 'single' },
-        { id: 'gps_pos', name: "GPS Lat/Lon", unit: "", type: 'text' },
-        { id: 'gps_alt', name: "Altitude", unit: "m", type: 'single' },
-        { id: 'bat_lvl', name: "Batterie", unit: "%", bar: true, type: 'single' },
-        { id: 'net_type', name: "Connexion", unit: "", type: 'text' },
-        { id: 'lux', name: "Luminosité", unit: "Lux", bar: true, type: 'single' },
-        { id: 'touch', name: "Force Toucher", unit: "", type: 'text' }
+        { id: 'mag', name: "Magnétomètre", unit: "µT", type: 'xyz' },
+        { id: 'gravity', name: "Gravité", unit: "m/s²", type: 'xyz' },
+        { id: 'lux', name: "Luminosité (Est.)", unit: "Lux", type: 'single', bar: true },
+        { id: 'prox', name: "Proximité", unit: "", type: 'single' },
+        { id: 'baro', name: "Pression", unit: "hPa", type: 'single' },
+        { id: 'temp', name: "Température", unit: "°C", type: 'single' },
+        { id: 'gps', name: "GPS Position", unit: "", type: 'text' },
+        { id: 'gps_alt', name: "Altitude (MSL)", unit: "m", type: 'single' },
+        { id: 'net', name: "Network Latency", unit: "ms", type: 'single' },
+        { id: 'memory', name: "JS Heap Use", unit: "MB", type: 'single', bar: true }
     ];
 
     const engines = {};
-    const uiRefs = {};
-    const fmt = (n) => (n || 0).toFixed(2);
+    const fmt = (v) => v.toFixed(2);
 
+    // Initialisation du DOM
     const grid = document.getElementById('grid');
     metrics.forEach(m => {
         engines[m.id] = new DataEngine();
-        const div = document.createElement('div');
-        div.className = 'card';
-        div.onclick = () => { engines[m.id].reset(); };
-        div.innerHTML = `
-            <div class="label">${m.name}</div>
-            <div class="val" id="v-${m.id}">--</div>
-            <div class="val-max" id="m-${m.id}">MAX: --</div>
-            ${m.bar ? `<div class="bar-container"><div class="bar-fill" id="bar-${m.id}"></div></div>` : ''}
-        `;
-        grid.appendChild(div);
-        uiRefs[m.id] = { val: document.getElementById(`v-${m.id}`), max: document.getElementById(`m-${m.id}`), bar: document.getElementById(`bar-${m.id}`) };
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.onclick = () => engines[m.id].reset();
+        
+        let content = `<div class="label">${m.name}</div>`;
+        
+        if (m.type === 'xyz') {
+            content += `
+                <div class="header-xyz"><div></div><div>CUR</div><div>AVG(1s)</div><div>MAX</div></div>
+                <div class="xyz-container">
+                    ${['x', 'y', 'z'].map(axis => `
+                        <div class="xyz-row">
+                            <div class="axis-label" style="color:var(--axis-${axis})">${axis.toUpperCase()}</div>
+                            <div class="val-cur" id="${m.id}-${axis}-cur">0.00</div>
+                            <div class="val-avg" id="${m.id}-${axis}-avg">0.00</div>
+                            <div class="val-max" id="${m.id}-${axis}-max">0.00</div>
+                        </div>
+                    `).join('')}
+                </div>`;
+        } else if (m.type === 'single') {
+            content += `
+                <div class="single-val" id="${m.id}-s-cur">--</div>
+                <div class="sub-text">AVG: <span id="${m.id}-s-avg">--</span> | MAX: <span id="${m.id}-s-max">--</span> ${m.unit}</div>
+                ${m.bar ? `<div class="bar-bg"><div class="bar-fill" id="${m.id}-bar"></div></div>` : ''}`;
+        } else {
+            content += `<div class="val-cur" id="${m.id}-text" style="font-size:9px; margin-top:5px;">Awaiting signal...</div>`;
+        }
+        
+        card.innerHTML = content;
+        grid.appendChild(card);
     });
 
-    const refreshUI = (id, percent = null) => {
-        const eng = engines[id];
-        const m = metrics.find(x => x.id === id);
-        if (m.type === 'xyz') {
-            const dx = eng.get('x'), dy = eng.get('y'), dz = eng.get('z');
-            uiRefs[id].val.innerText = `X:${fmt(dx.avg)} Y:${fmt(dy.avg)} Z:${fmt(dz.avg)}`;
-            uiRefs[id].max.innerText = `MAX X:${fmt(dx.max)} Y:${fmt(dy.max)} Z:${fmt(dz.max)}`;
-        } else if (m.type === 'single') {
-            const d = eng.get('single');
-            uiRefs[id].val.innerHTML = `${fmt(d.avg)} <span style="font-size:8px">${m.unit}</span>`;
-            uiRefs[id].max.innerText = `MAX: ${fmt(d.max)}`;
-            if(percent !== null && uiRefs[id].bar) uiRefs[id].bar.style.width = percent + "%";
-        }
+    const updateUI = () => {
+        metrics.forEach(m => {
+            const eng = engines[m.id];
+            if (m.type === 'xyz') {
+                ['x', 'y', 'z'].forEach(axis => {
+                    const stats = eng.getStats(axis);
+                    document.getElementById(`${m.id}-${axis}-cur`).innerText = fmt(stats.cur);
+                    document.getElementById(`${m.id}-${axis}-avg`).innerText = fmt(stats.avg);
+                    document.getElementById(`${m.id}-${axis}-max`).innerText = fmt(stats.max);
+                });
+            } else if (m.type === 'single') {
+                const stats = eng.getStats('s');
+                document.getElementById(`${m.id}-s-cur`).innerText = Math.round(stats.cur);
+                document.getElementById(`${m.id}-s-avg`).innerText = fmt(stats.avg);
+                document.getElementById(`${m.id}-s-max`).innerText = fmt(stats.max);
+                if (m.bar) {
+                    const bar = document.getElementById(`${m.id}-bar`);
+                    let p = (stats.cur / (m.id === 'lux' ? 255 : 100)) * 100;
+                    bar.style.width = Math.min(p, 100) + "%";
+                }
+            }
+        });
+        requestAnimationFrame(updateUI);
     };
 
-    const startEngine = async () => {
+    const startSensors = async () => {
+        // Mouvement et Rotation
         window.addEventListener('devicemotion', (e) => {
-            const al = e.acceleration || {x:0, y:0, z:0};
-            engines.acc_lin.update(al.x, al.y, al.z); refreshUI('acc_lin');
-            const r = e.rotationRate || {alpha:0, beta:0, gamma:0};
-            engines.gyro.update(r.alpha, r.beta, r.gamma); refreshUI('gyro');
-        });
-
-        let smoothHead = 0;
-        window.addEventListener('deviceorientation', (e) => {
-            // CORRECTION 180° : Si le Nord est à l'opposé, on ajuste l'alpha
-            let heading = e.webkitCompassHeading || (360 - e.alpha);
+            const acc = e.accelerationIncludingGravity || {x:0, y:0, z:0};
+            engines.accel.update(acc.x, acc.y, acc.z);
             
-            // Correction du décalage constaté par l'utilisateur
-            heading = (heading + 180) % 360; 
-
-            let diff = heading - smoothHead;
-            if(diff > 180) diff -= 360; if(diff < -180) diff += 360;
-            smoothHead += diff * 0.1;
-            const finalH = (smoothHead + 360) % 360;
-
-            document.getElementById('ui-ring').style.transform = `rotate(${-finalH}deg)`;
-            document.getElementById('ui-heading').innerText = Math.round(finalH) + "°";
-            document.getElementById('ui-cardinal').innerText = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"][Math.round(finalH / 45) % 8];
-            document.getElementById('ui-tilt').innerText = `Tilt: ${Math.max(Math.abs(e.beta||0), Math.abs(e.gamma||0)).toFixed(0)}°`;
+            const rot = e.rotationRate || {alpha:0, beta:0, gamma:0};
+            engines.gyro.update(rot.alpha, rot.beta, rot.gamma);
         });
 
+        // Orientation & Boussole
+        window.addEventListener('deviceorientation', (e) => {
+            let heading = e.webkitCompassHeading || (360 - e.alpha);
+            document.getElementById('ui-ring').style.transform = `rotate(${-heading}deg)`;
+            document.getElementById('ui-heading').innerText = Math.round(heading) + "°";
+            document.getElementById('ui-cardinal').innerText = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"][Math.round(heading / 45) % 8];
+            
+            // Simulation gravité via angles
+            const gx = Math.sin(e.gamma * Math.PI/180) * 9.81;
+            const gy = Math.sin(e.beta * Math.PI/180) * 9.81;
+            engines.gravity.update(gx, gy, 9.81 - Math.abs(gx+gy)/2);
+        });
+
+        // GPS
+        navigator.geolocation.watchPosition(p => {
+            const c = p.coords;
+            document.getElementById('gps-text').innerText = `${c.latitude.toFixed(5)}°N\n${c.longitude.toFixed(5)}°E\n±${c.accuracy.toFixed(0)}m`;
+            engines.gps_alt.update(c.altitude || 0);
+        }, null, {enableHighAccuracy: true});
+
+        // Magnétomètre (si API disponible)
         if ('Magnetometer' in window) {
             try {
                 const mag = new Magnetometer({frequency: 10});
                 mag.onreading = () => {
-                    engines.mag_raw.update(mag.x, mag.y, mag.z); refreshUI('mag_raw');
-                    const tot = Math.sqrt(mag.x**2 + mag.y**2 + mag.z**2);
-                    engines.mag_total.update(tot); refreshUI('mag_total', (tot/100)*100);
-                    // Détection besoin étalonnage (Champ anormal > 80µT ou < 20µT)
-                    document.getElementById('calib-warn').style.display = (tot > 80 || tot < 20) ? 'block' : 'none';
+                    engines.mag.update(mag.x, mag.y, mag.z);
+                    const total = Math.sqrt(mag.x**2 + mag.y**2 + mag.z**2);
+                    document.getElementById('calib-warn').style.display = (total > 100 || total < 20) ? 'block' : 'none';
                 };
                 mag.start();
             } catch(e) {}
         }
 
-        navigator.geolocation.watchPosition(p => {
-            const c = p.coords;
-            uiRefs.gps_pos.val.innerText = `${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}`;
-            engines.gps_spd.update(c.speed * 3.6 || 0); refreshUI('gps_spd');
-            engines.gps_alt.update(c.altitude || 0); refreshUI('gps_alt');
-        }, null, { enableHighAccuracy: true });
-
-        setInterval(async () => {
-            if(navigator.getBattery) {
-                const b = await navigator.getBattery();
-                engines.bat_lvl.update(b.level * 100); refreshUI('bat_lvl', b.level*100);
+        // Memory & Network
+        setInterval(() => {
+            if (performance.memory) {
+                engines.memory.update(performance.memory.usedJSHeapSize / 1048576);
             }
-            const n = navigator.connection || {};
-            uiRefs.net_type.val.innerText = `${(n.effectiveType || 'N/A').toUpperCase()}\n${n.downlink || 0} Mbps`;
-        }, 2000);
+            const start = Date.now();
+            fetch('favicon.ico', { mode: 'no-cors' }).then(() => {
+                engines.net.update(Date.now() - start);
+            }).catch(() => {});
+        }, 3000);
 
-        initLux();
+        // Luminosité via Caméra
+        initCameraLux();
+        updateUI();
     };
 
-    const initLux = async () => {
+    const initCameraLux = async () => {
         try {
-            const s = await navigator.mediaDevices.getUserMedia({video: {facingMode:'environment'}});
-            const v = document.getElementById('hidden-cam'); v.srcObject = s;
+            const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode:'environment'}});
+            const v = document.getElementById('hidden-cam');
+            v.srcObject = stream;
             const ctx = document.getElementById('lux-canvas').getContext('2d');
             setInterval(() => {
                 if(v.readyState === 4) {
                     ctx.drawImage(v, 0, 0, 30, 30);
                     const d = ctx.getImageData(0,0,30,30).data;
-                    let l = 0; for(let i=0; i<d.length; i+=4) l += d[i];
-                    const val = Math.floor(l/(d.length/4));
-                    engines.lux.update(val); refreshUI('lux', (val/255)*100);
+                    let lum = 0;
+                    for(let i=0; i<d.length; i+=4) lum += (d[i] + d[i+1] + d[i+2]) / 3;
+                    engines.lux.update(lum / (d.length/4));
                 }
-            }, 1000);
+            }, 500);
         } catch(e) {}
     };
 
     document.getElementById('btn-init').onclick = async () => {
         document.getElementById('btn-init').style.display = 'none';
-        if(typeof DeviceOrientationEvent?.requestPermission === 'function') {
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
             await DeviceOrientationEvent.requestPermission();
             await DeviceMotionEvent.requestPermission();
         }
-        startEngine();
+        startSensors();
     };
 }
 </script>
