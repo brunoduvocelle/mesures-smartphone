@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SENSORY BLACK BOX v8.5 - AUTO</title>
+    <title>SENSORY BLACK BOX v9.0 - ULTIMATE</title>
     <style>
         :root {
             --bg: #050505;
@@ -24,13 +24,13 @@
             font-family: 'SF Mono', 'Consolas', monospace;
             margin: 0;
             padding: 10px;
-            padding-bottom: 20px;
+            padding-bottom: 50px;
             font-size: 10px;
             user-select: none;
             overflow-x: hidden;
         }
 
-        h1 { color: var(--accent); text-align: left; font-size: 14px; margin: 0 0 10px 0; letter-spacing: 2px; }
+        h1 { color: var(--accent); text-align: left; font-size: 14px; margin: 0 0 10px 0; letter-spacing: 2px; border-bottom: 1px solid #222; padding-bottom: 10px; }
 
         .dashboard {
             display: grid;
@@ -38,80 +38,97 @@
             gap: 8px;
         }
 
-        /* --- BOUSSOLE HAUTE PRÉCISION --- */
+        /* --- COMPASS MODULE --- */
         .compass-module {
             grid-column: span 2;
-            background: linear-gradient(145deg, #151515, #0a0a0a);
+            background: linear-gradient(145deg, #151515, #080808);
             border: 1px solid var(--border);
             padding: 15px;
             display: flex;
             align-items: center;
             margin-bottom: 8px;
             border-radius: 4px;
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+            position: relative;
         }
-        .compass-viz { width: 90px; height: 90px; position: relative; margin-right: 20px; flex-shrink: 0; }
+        .compass-viz { width: 80px; height: 80px; position: relative; margin-right: 20px; flex-shrink: 0; }
         .compass-ring { 
             width: 100%; height: 100%; border: 2px solid #333; border-radius: 50%; 
             position: relative; will-change: transform;
+            background: radial-gradient(circle, #222 10%, transparent 10%);
+            background-size: 100% 100%;
         }
-        .needle-n { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 3px; height: 37px; background: var(--axis-x); clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
-        .needle-s { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 3px; height: 37px; background: #fff; clip-path: polygon(0% 0%, 100% 0%, 50% 100%); }
-        .center-dot { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 6px; height: 6px; background: var(--accent); border-radius: 50%; border: 2px solid var(--bg); }
+        .needle-n { position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 4px; height: 35px; background: var(--axis-x); clip-path: polygon(50% 0%, 0% 100%, 100% 100%); z-index: 2; }
+        .needle-s { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 4px; height: 35px; background: #ddd; clip-path: polygon(0% 0%, 100% 0%, 50% 100%); z-index: 2; }
+        .compass-label { position: absolute; font-weight: bold; font-size: 10px; color: #555; }
+        .cl-n { top: -15px; left: 50%; transform: translateX(-50%); color: var(--axis-x); }
+        
+        .compass-data { display: flex; flex-direction: column; justify-content: center; }
+        .compass-val { font-size: 32px; font-weight: bold; color: #fff; line-height: 1; }
+        .compass-card { color: var(--accent); font-size: 14px; letter-spacing: 3px; margin-top: 5px; font-weight: bold; }
+        .compass-tilt { font-size: 9px; color: #666; margin-top: 5px; }
 
         /* --- CARDS --- */
         .card {
             background: var(--card);
             border: 1px solid var(--border);
-            padding: 10px;
+            padding: 8px;
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 4px;
             border-radius: 2px;
+            min-height: 60px;
         }
-        .label { color: var(--label); font-size: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        .card.full { grid-column: span 2; }
         
-        .xyz-container { display: flex; flex-direction: column; gap: 2px; }
-        .xyz-row { display: grid; grid-template-columns: 12px 1fr 1fr 1fr; align-items: center; gap: 4px; border-bottom: 1px solid #1a1a1a; padding-bottom: 2px; }
+        .label { color: var(--label); font-size: 8px; text-transform: uppercase; letter-spacing: 1px; display: flex; justify-content: space-between; }
+        
+        .xyz-container { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+        .xyz-row { display: grid; grid-template-columns: 10px 1fr 1fr 1fr; align-items: center; gap: 2px; border-bottom: 1px solid #1a1a1a; padding-bottom: 2px; }
         .axis-label { font-weight: bold; font-size: 8px; }
-        .val-cur { color: #fff; font-size: 11px; }
-        .val-avg { color: var(--accent); font-size: 9px; opacity: 0.8; }
+        .val-cur { color: #fff; font-size: 10px; font-family: 'Consolas'; }
+        .val-avg { color: var(--accent); font-size: 9px; opacity: 0.7; }
         .val-max { color: var(--warn); font-size: 9px; text-align: right; }
 
-        .single-val { font-size: 18px; font-weight: bold; color: var(--accent); margin: 2px 0; }
-        .sub-text { font-size: 8px; color: var(--label); }
+        .single-val { font-size: 16px; font-weight: bold; color: var(--accent); margin: 2px 0; }
+        .sub-text { font-size: 8px; color: var(--label); white-space: pre-wrap; line-height: 1.3; }
 
-        /* --- OVERLAYS --- */
-        #interaction-overlay {
+        .bar-bg { width: 100%; height: 3px; background: #222; margin-top: 4px; border-radius: 2px; overflow: hidden; }
+        .bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.2s; }
+
+        /* --- OVERLAY FOR AUTOSTART --- */
+        #start-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 9999;
+            background: rgba(0,0,0,0.85); z-index: 9999;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            backdrop-filter: blur(5px); cursor: pointer;
+            backdrop-filter: blur(4px); cursor: pointer;
+            transition: opacity 0.3s;
         }
+        .blink { animation: blinker 1.5s linear infinite; color: var(--accent); font-weight: bold; font-size: 12px; margin-top: 20px; }
+        @keyframes blinker { 50% { opacity: 0; } }
     </style>
 </head>
 <body>
 
-    <div id="interaction-overlay">
-        <div style="color: var(--accent); font-size: 14px; font-weight: bold; margin-bottom: 10px;">SYSTEM READY</div>
-        <div style="color: #fff; font-size: 10px;">TAP TO ACTIVATE SENSORS</div>
+    <div id="start-overlay">
+        <div style="font-size: 40px;">👆</div>
+        <div class="blink">TAP ANYWHERE TO ACTIVATE</div>
+        <div style="font-size: 9px; color: #666; margin-top: 10px;">BROWSER SECURITY REQUIRES INTERACTION</div>
     </div>
 
-    <h1>SENSORY BLACK BOX <span style="color:#555">v8.5</span></h1>
+    <h1>SENSORY BLACK BOX v9.0</h1>
 
     <div class="compass-module">
         <div class="compass-viz">
+            <div class="cl-n compass-label">N</div>
             <div class="compass-ring" id="ui-ring">
-                <div class="needle-n"></div>
-                <div class="needle-s"></div>
-                <div class="center-dot"></div>
+                <div class="needle-n"></div><div class="needle-s"></div>
             </div>
         </div>
-        <div style="flex-grow: 1;">
-            <div class="label">True Bearing (Filtered)</div>
-            <div id="ui-heading" style="font-size: 32px; font-weight: bold; color: #fff;">---°</div>
-            <div id="ui-cardinal" style="color: var(--accent); font-size: 14px; letter-spacing: 2px;">---</div>
-            <div id="ui-status" style="font-size: 8px; color: #555; margin-top: 5px;">SENSOR IDLE</div>
+        <div class="compass-data">
+            <div class="label">CAP MAGNÉTIQUE</div>
+            <div class="compass-val" id="ui-heading">---°</div>
+            <div class="compass-card" id="ui-cardinal">---</div>
+            <div class="compass-tilt" id="ui-tilt">Flat</div>
         </div>
     </div>
 
@@ -122,8 +139,9 @@
 
 <script>
 {
+    // --- MOTEUR DE DONNÉES ---
     class DataEngine {
-        constructor(bufferSize = 60) {
+        constructor(bufferSize = 30) {
             this.bufferSize = bufferSize;
             this.reset();
         }
@@ -156,93 +174,67 @@
         }
     }
 
+    // --- CONFIGURATION MÉTRIQUES (COMPLÈTE) ---
     const metrics = [
-        { id: 'accel', name: "Accéléromètre", unit: "m/s²", type: 'xyz' },
+        { id: 'accel', name: "Accél. (inc. G)", unit: "m/s²", type: 'xyz' },
         { id: 'gyro', name: "Gyroscope", unit: "rad/s", type: 'xyz' },
         { id: 'mag', name: "Magnétomètre", unit: "µT", type: 'xyz' },
-        { id: 'gravity', name: "Inclinaison", unit: "°", type: 'xyz' },
-        { id: 'lux', name: "Luminosité", unit: "Lux", type: 'single' },
-        { id: 'gps_spd', name: "Vitesse GPS", unit: "km/h", type: 'single' },
+        { id: 'gps_pos', name: "Position GPS", unit: "", type: 'text', full: true },
+        { id: 'gps_data', name: "Données GPS", unit: "", type: 'gps_split' },
+        { id: 'lux', name: "Luminosité (Cam)", unit: "Lux", type: 'single', bar: true },
+        { id: 'net', name: "Réseau / Latence", unit: "ms", type: 'text' },
+        { id: 'battery', name: "Batterie", unit: "%", type: 'single', bar: true },
+        { id: 'prox', name: "Proximité", unit: "cm", type: 'single' },
         { id: 'baro', name: "Pression", unit: "hPa", type: 'single' },
-        { id: 'memory', name: "JS Heap", unit: "MB", type: 'single' }
+        { id: 'memory', name: "Mémoire JS", unit: "MB", type: 'single', bar: true },
+        { id: 'touch', name: "Toucher", unit: "pts", type: 'text' }
     ];
 
     const engines = {};
     const fmt = (v) => (v || 0).toFixed(2);
 
-    // Build UI
+    // --- CONSTRUCTION UI ---
     const grid = document.getElementById('grid');
     metrics.forEach(m => {
         engines[m.id] = new DataEngine();
         const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `<div class="label">${m.name}</div>`;
+        card.className = `card ${m.full ? 'full' : ''}`;
         
+        let html = `<div class="label"><span>${m.name}</span> <span style="font-size:7px; opacity:0.5">${m.unit}</span></div>`;
+
         if (m.type === 'xyz') {
-            card.innerHTML += `
-                <div class="xyz-container">
-                    ${['x', 'y', 'z'].map(axis => `
-                        <div class="xyz-row">
-                            <div class="axis-label" style="color:var(--axis-${axis})">${axis.toUpperCase()}</div>
-                            <div class="val-cur" id="${m.id}-${axis}-cur">0.00</div>
-                            <div class="val-avg" id="${m.id}-${axis}-avg">0.00</div>
-                            <div class="val-max" id="${m.id}-${axis}-max">0.00</div>
-                        </div>`).join('')}
-                </div>`;
+            html += `<div class="xyz-container">
+                ${['x', 'y', 'z'].map(ax => `
+                    <div class="xyz-row">
+                        <div class="axis-label" style="color:var(--axis-${ax})">${ax.toUpperCase()}</div>
+                        <div class="val-cur" id="${m.id}-${ax}-cur">0.0</div>
+                        <div class="val-avg" id="${m.id}-${ax}-avg">0.0</div>
+                        <div class="val-max" id="${m.id}-${ax}-max">0.0</div>
+                    </div>`).join('')}
+            </div>`;
+        } else if (m.type === 'single') {
+            html += `<div class="single-val" id="${m.id}-s-cur">--</div>
+                     <div class="sub-text">AVG: <span id="${m.id}-s-avg">--</span> | MAX: <span id="${m.id}-s-max">--</span></div>
+                     ${m.bar ? `<div class="bar-bg"><div class="bar-fill" id="${m.id}-bar"></div></div>` : ''}`;
+        } else if (m.type === 'gps_split') {
+            html += `<div style="display:flex; justify-content:space-between;">
+                        <div><div class="single-val" id="gps-alt">0</div><div class="sub-text">ALT (m)</div></div>
+                        <div style="text-align:right"><div class="single-val" id="gps-spd">0</div><div class="sub-text">VIT (km/h)</div></div>
+                     </div>`;
         } else {
-            card.innerHTML += `
-                <div class="single-val" id="${m.id}-s-cur">--</div>
-                <div class="sub-text">AVG: <span id="${m.id}-s-avg">--</span> | MAX: <span id="${m.id}-s-max">--</span></div>`;
+            html += `<div class="single-val" id="${m.id}-text" style="font-size:11px; margin-top:5px; white-space:pre-wrap;">--</div>`;
         }
+        card.innerHTML = html;
         grid.appendChild(card);
     });
 
+    // --- LOGIQUE BOUSSOLE (KALMAN / LISSAGE) ---
     let smoothHeading = 0;
-    const filterAlpha = 0.12; // Filtre passe-bas pour la boussole
+    const alpha = 0.15; // Facteur de lissage (plus petit = plus lent/stable)
 
-    const start = async () => {
-        document.getElementById('interaction-overlay').style.display = 'none';
-        document.getElementById('ui-status').innerText = "LIVE TELEMETRY";
-
-        // BOUSSOLE & ORIENTATION
-        window.addEventListener('deviceorientation', (e) => {
-            // webkitCompassHeading est le seul fiable sur iOS pour le Nord Magnétique
-            let rawHeading = e.webkitCompassHeading || (360 - e.alpha);
-            
-            // Logique de filtrage pour éviter les sauts brusques (passage 359->0)
-            let diff = rawHeading - smoothHeading;
-            if (diff > 180) diff -= 360;
-            if (diff < -180) diff += 360;
-            smoothHeading += diff * filterAlpha;
-            
-            const heading = (smoothHeading + 360) % 360;
-
-            document.getElementById('ui-ring').style.transform = `rotate(${-heading}deg)`;
-            document.getElementById('ui-heading').innerText = Math.round(heading) + "°";
-            document.getElementById('ui-cardinal').innerText = ["NORD", "N-EST", "EST", "S-EST", "SUD", "S-OUEST", "OUEST", "N-OUEST"][Math.round(heading / 45) % 8];
-            
-            // Inclinaison (Gravité relative)
-            engines.gravity.update(e.beta, e.gamma, 0);
-        }, true);
-
-        // MOTION
-        window.addEventListener('devicemotion', (e) => {
-            const a = e.accelerationIncludingGravity || {x:0, y:0, z:0};
-            engines.accel.update(a.x, a.y, a.z);
-            const r = e.rotationRate || {alpha:0, beta:0, gamma:0};
-            engines.gyro.update(r.alpha, r.beta, r.gamma);
-        });
-
-        // GPS & LUX
-        navigator.geolocation.watchPosition(p => {
-            engines.gps_spd.update((p.coords.speed || 0) * 3.6);
-        }, null, {enableHighAccuracy: true});
-
-        initLux();
-        requestAnimationFrame(loop);
-    };
-
-    const loop = () => {
+    // --- BOUCLE PRINCIPALE ---
+    const updateLoop = () => {
+        // Mise à jour des cartes
         metrics.forEach(m => {
             const eng = engines[m.id];
             if (m.type === 'xyz') {
@@ -252,16 +244,103 @@
                     document.getElementById(`${m.id}-${ax}-avg`).innerText = fmt(s.avg);
                     document.getElementById(`${m.id}-${ax}-max`).innerText = fmt(s.max);
                 });
-            } else {
+            } else if (m.type === 'single') {
                 const s = eng.getStats('s');
-                document.getElementById(`${m.id}-s-cur`).innerText = Math.round(s.cur);
+                document.getElementById(`${m.id}-s-cur`).innerText = (m.id === 'battery') ? Math.round(s.cur) : fmt(s.cur);
                 document.getElementById(`${m.id}-s-avg`).innerText = fmt(s.avg);
                 document.getElementById(`${m.id}-s-max`).innerText = fmt(s.max);
+                if(m.bar) {
+                    let max = (m.id==='lux')?1000:(m.id==='battery')?100:100; // Echelles simples
+                    let p = Math.min((s.cur / max) * 100, 100);
+                    document.getElementById(`${m.id}-bar`).style.width = p + "%";
+                }
             }
         });
-        
-        if (performance.memory) engines.memory.update(performance.memory.usedJSHeapSize / 1048576);
-        requestAnimationFrame(loop);
+        requestAnimationFrame(updateLoop);
+    };
+
+    // --- INITIALISATION ---
+    const init = async () => {
+        const overlay = document.getElementById('start-overlay');
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.remove(), 300);
+
+        // 1. Orientation & Boussole
+        window.addEventListener('deviceorientation', (e) => {
+            // Cap (iOS vs Android)
+            let rawHeading = e.webkitCompassHeading || (e.alpha ? (360 - e.alpha) : 0);
+            
+            // Gestion du passage 359->0 pour le lissage
+            let delta = rawHeading - smoothHeading;
+            if (delta > 180) delta -= 360;
+            if (delta < -180) delta += 360;
+            smoothHeading += delta * alpha;
+            const heading = (smoothHeading + 360) % 360;
+
+            document.getElementById('ui-ring').style.transform = `rotate(${-heading}deg)`;
+            document.getElementById('ui-heading').innerText = Math.round(heading) + "°";
+            const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+            document.getElementById('ui-cardinal').innerText = dirs[Math.round(heading / 45) % 8];
+            document.getElementById('ui-tilt').innerText = `TILT: ${Math.round(e.beta)}°/${Math.round(e.gamma)}°`;
+        }, true);
+
+        // 2. Mouvement (Accel + Gyro)
+        window.addEventListener('devicemotion', (e) => {
+            const a = e.accelerationIncludingGravity || {x:0, y:0, z:0};
+            engines.accel.update(a.x, a.y, a.z);
+            const r = e.rotationRate || {alpha:0, beta:0, gamma:0};
+            engines.gyro.update(r.alpha, r.beta, r.gamma);
+        });
+
+        // 3. GPS
+        navigator.geolocation.watchPosition(p => {
+            const c = p.coords;
+            document.getElementById('gps_pos-text').innerText = `${c.latitude.toFixed(6)}, ${c.longitude.toFixed(6)}\nPrécision: ±${Math.round(c.accuracy)}m`;
+            document.getElementById('gps-alt').innerText = Math.round(c.altitude || 0);
+            document.getElementById('gps-spd').innerText = Math.round((c.speed || 0) * 3.6);
+        }, null, { enableHighAccuracy: true });
+
+        // 4. Magnétomètre natif (si dispo)
+        if ('Magnetometer' in window) {
+            try {
+                const mag = new Magnetometer({frequency: 10});
+                mag.onreading = () => engines.mag.update(mag.x, mag.y, mag.z);
+                mag.start();
+            } catch(e){}
+        }
+
+        // 5. Batterie
+        if(navigator.getBattery) {
+            const uBat = async () => { const b = await navigator.getBattery(); engines.battery.update(b.level*100); };
+            uBat(); setInterval(uBat, 10000);
+        }
+
+        // 6. Réseau & Mémoire
+        setInterval(() => {
+            if(performance.memory) engines.memory.update(performance.memory.usedJSHeapSize/1048576);
+            const conn = navigator.connection || {};
+            const start = Date.now();
+            fetch(window.location.href, {mode:'no-cors', cache:'no-store'}).then(()=>{
+                const lat = Date.now() - start;
+                document.getElementById('net-text').innerText = `${(conn.effectiveType||'4g').toUpperCase()} | ${conn.downlink||0} Mbps\nPing: ${lat}ms`;
+            });
+        }, 2000);
+
+        // 7. Toucher
+        ['touchstart', 'touchmove', 'touchend'].forEach(evt => {
+            window.addEventListener(evt, (e) => {
+                let txt = `${e.touches.length} points`;
+                if(e.touches[0]) txt += `\nForce: ${e.touches[0].force.toFixed(2)}`;
+                document.getElementById('touch-text').innerText = txt;
+            });
+        });
+
+        // 8. Proximité (si supporté)
+        window.addEventListener('deviceproximity', (e) => engines.prox.update(e.value));
+
+        // 9. Lux (Caméra)
+        initLux();
+        updateLoop();
     };
 
     const initLux = async () => {
@@ -274,26 +353,23 @@
                 if(v.readyState === 4) {
                     ctx.drawImage(v, 0, 0, 30, 30);
                     const d = ctx.getImageData(0,0,30,30).data;
-                    let l = 0; for(let i=0; i<d.length; i+=4) l += (d[i]+d[i+1]+d[i+2])/3;
-                    engines.lux.update(l / (d.length/4));
+                    let l=0; for(let i=0; i<d.length; i+=4) l+=(d[i]+d[i+1]+d[i+2])/3;
+                    engines.lux.update(l/(d.length/4));
                 }
-            }, 1000);
+            }, 800);
         } catch(e) {}
     };
 
-    // Auto-start attempt
-    window.addEventListener('load', () => {
-        const overlay = document.getElementById('interaction-overlay');
-        overlay.addEventListener('click', async () => {
-            if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
-                try {
-                    await DeviceOrientationEvent.requestPermission();
-                    await DeviceMotionEvent.requestPermission();
-                } catch(e) { console.error(e); }
+    // Auto-boot au premier clic
+    document.addEventListener('click', async () => {
+        if(!window.isRunning) {
+            window.isRunning = true;
+            if(typeof DeviceOrientationEvent?.requestPermission==='function') {
+                try { await DeviceOrientationEvent.requestPermission(); await DeviceMotionEvent.requestPermission(); } catch(e){}
             }
-            start();
-        });
-    });
+            init();
+        }
+    }, {once:true});
 }
 </script>
 </body>
