@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SENSORY BLACK BOX v9.0 - ULTIMATE</title>
+    <title>SENSORY BLACK BOX v9.1 - FULL NETWORK</title>
     <style>
         :root {
             --bg: #050505;
@@ -48,24 +48,19 @@
             align-items: center;
             margin-bottom: 8px;
             border-radius: 4px;
-            position: relative;
         }
         .compass-viz { width: 80px; height: 80px; position: relative; margin-right: 20px; flex-shrink: 0; }
         .compass-ring { 
             width: 100%; height: 100%; border: 2px solid #333; border-radius: 50%; 
             position: relative; will-change: transform;
-            background: radial-gradient(circle, #222 10%, transparent 10%);
-            background-size: 100% 100%;
         }
         .needle-n { position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 4px; height: 35px; background: var(--axis-x); clip-path: polygon(50% 0%, 0% 100%, 100% 100%); z-index: 2; }
         .needle-s { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 4px; height: 35px; background: #ddd; clip-path: polygon(0% 0%, 100% 0%, 50% 100%); z-index: 2; }
-        .compass-label { position: absolute; font-weight: bold; font-size: 10px; color: #555; }
-        .cl-n { top: -15px; left: 50%; transform: translateX(-50%); color: var(--axis-x); }
+        .cl-n { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); color: var(--axis-x); font-weight: bold; }
         
         .compass-data { display: flex; flex-direction: column; justify-content: center; }
         .compass-val { font-size: 32px; font-weight: bold; color: #fff; line-height: 1; }
         .compass-card { color: var(--accent); font-size: 14px; letter-spacing: 3px; margin-top: 5px; font-weight: bold; }
-        .compass-tilt { font-size: 9px; color: #666; margin-top: 5px; }
 
         /* --- CARDS --- */
         .card {
@@ -79,10 +74,9 @@
             min-height: 60px;
         }
         .card.full { grid-column: span 2; }
-        
         .label { color: var(--label); font-size: 8px; text-transform: uppercase; letter-spacing: 1px; display: flex; justify-content: space-between; }
         
-        .xyz-container { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+        .xyz-container { display: flex; flex-direction: column; gap: 2px; }
         .xyz-row { display: grid; grid-template-columns: 10px 1fr 1fr 1fr; align-items: center; gap: 2px; border-bottom: 1px solid #1a1a1a; padding-bottom: 2px; }
         .axis-label { font-weight: bold; font-size: 8px; }
         .val-cur { color: #fff; font-size: 10px; font-family: 'Consolas'; }
@@ -95,31 +89,28 @@
         .bar-bg { width: 100%; height: 3px; background: #222; margin-top: 4px; border-radius: 2px; overflow: hidden; }
         .bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.2s; }
 
-        /* --- OVERLAY FOR AUTOSTART --- */
         #start-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); z-index: 9999;
+            background: rgba(0,0,0,0.9); z-index: 9999;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            backdrop-filter: blur(4px); cursor: pointer;
-            transition: opacity 0.3s;
+            cursor: pointer;
         }
-        .blink { animation: blinker 1.5s linear infinite; color: var(--accent); font-weight: bold; font-size: 12px; margin-top: 20px; }
+        .blink { animation: blinker 1.5s linear infinite; color: var(--accent); }
         @keyframes blinker { 50% { opacity: 0; } }
     </style>
 </head>
 <body>
 
     <div id="start-overlay">
-        <div style="font-size: 40px;">👆</div>
-        <div class="blink">TAP ANYWHERE TO ACTIVATE</div>
-        <div style="font-size: 9px; color: #666; margin-top: 10px;">BROWSER SECURITY REQUIRES INTERACTION</div>
+        <div style="font-size: 40px;">🚀</div>
+        <div class="blink" style="margin-top:20px; font-weight:bold;">CLIQUER POUR ACTIVER LES CAPTEURS</div>
     </div>
 
-    <h1>SENSORY BLACK BOX v9.0</h1>
+    <h1>SENSORY BLACK BOX v9.1</h1>
 
     <div class="compass-module">
         <div class="compass-viz">
-            <div class="cl-n compass-label">N</div>
+            <div class="cl-n">N</div>
             <div class="compass-ring" id="ui-ring">
                 <div class="needle-n"></div><div class="needle-s"></div>
             </div>
@@ -128,7 +119,7 @@
             <div class="label">CAP MAGNÉTIQUE</div>
             <div class="compass-val" id="ui-heading">---°</div>
             <div class="compass-card" id="ui-cardinal">---</div>
-            <div class="compass-tilt" id="ui-tilt">Flat</div>
+            <div id="ui-tilt" style="font-size: 9px; color: #666; margin-top: 5px;">TILT: --</div>
         </div>
     </div>
 
@@ -139,7 +130,6 @@
 
 <script>
 {
-    // --- MOTEUR DE DONNÉES ---
     class DataEngine {
         constructor(bufferSize = 30) {
             this.bufferSize = bufferSize;
@@ -174,7 +164,6 @@
         }
     }
 
-    // --- CONFIGURATION MÉTRIQUES (COMPLÈTE) ---
     const metrics = [
         { id: 'accel', name: "Accél. (inc. G)", unit: "m/s²", type: 'xyz' },
         { id: 'gyro', name: "Gyroscope", unit: "rad/s", type: 'xyz' },
@@ -182,24 +171,22 @@
         { id: 'gps_pos', name: "Position GPS", unit: "", type: 'text', full: true },
         { id: 'gps_data', name: "Données GPS", unit: "", type: 'gps_split' },
         { id: 'lux', name: "Luminosité (Cam)", unit: "Lux", type: 'single', bar: true },
-        { id: 'net', name: "Réseau / Latence", unit: "ms", type: 'text' },
+        { id: 'net', name: "Réseau Avancé", unit: "", type: 'text' },
         { id: 'battery', name: "Batterie", unit: "%", type: 'single', bar: true },
         { id: 'prox', name: "Proximité", unit: "cm", type: 'single' },
         { id: 'baro', name: "Pression", unit: "hPa", type: 'single' },
         { id: 'memory', name: "Mémoire JS", unit: "MB", type: 'single', bar: true },
-        { id: 'touch', name: "Toucher", unit: "pts", type: 'text' }
+        { id: 'touch', name: "Toucher Force", unit: "pts", type: 'text' }
     ];
 
     const engines = {};
     const fmt = (v) => (v || 0).toFixed(2);
 
-    // --- CONSTRUCTION UI ---
     const grid = document.getElementById('grid');
     metrics.forEach(m => {
         engines[m.id] = new DataEngine();
         const card = document.createElement('div');
         card.className = `card ${m.full ? 'full' : ''}`;
-        
         let html = `<div class="label"><span>${m.name}</span> <span style="font-size:7px; opacity:0.5">${m.unit}</span></div>`;
 
         if (m.type === 'xyz') {
@@ -222,19 +209,16 @@
                         <div style="text-align:right"><div class="single-val" id="gps-spd">0</div><div class="sub-text">VIT (km/h)</div></div>
                      </div>`;
         } else {
-            html += `<div class="single-val" id="${m.id}-text" style="font-size:11px; margin-top:5px; white-space:pre-wrap;">--</div>`;
+            html += `<div class="single-val" id="${m.id}-text" style="font-size:10px; margin-top:5px; white-space:pre-wrap;">--</div>`;
         }
         card.innerHTML = html;
         grid.appendChild(card);
     });
 
-    // --- LOGIQUE BOUSSOLE (KALMAN / LISSAGE) ---
     let smoothHeading = 0;
-    const alpha = 0.15; // Facteur de lissage (plus petit = plus lent/stable)
+    const alpha = 0.15;
 
-    // --- BOUCLE PRINCIPALE ---
-    const updateLoop = () => {
-        // Mise à jour des cartes
+    const updateUI = () => {
         metrics.forEach(m => {
             const eng = engines[m.id];
             if (m.type === 'xyz') {
@@ -246,45 +230,31 @@
                 });
             } else if (m.type === 'single') {
                 const s = eng.getStats('s');
-                document.getElementById(`${m.id}-s-cur`).innerText = (m.id === 'battery') ? Math.round(s.cur) : fmt(s.cur);
+                document.getElementById(`${m.id}-s-cur`).innerText = (m.id==='battery')?Math.round(s.cur):fmt(s.cur);
                 document.getElementById(`${m.id}-s-avg`).innerText = fmt(s.avg);
                 document.getElementById(`${m.id}-s-max`).innerText = fmt(s.max);
-                if(m.bar) {
-                    let max = (m.id==='lux')?1000:(m.id==='battery')?100:100; // Echelles simples
-                    let p = Math.min((s.cur / max) * 100, 100);
-                    document.getElementById(`${m.id}-bar`).style.width = p + "%";
-                }
+                if(m.bar) document.getElementById(`${m.id}-bar`).style.width = Math.min((s.cur/(m.id==='lux'?500:100))*100, 100) + "%";
             }
         });
-        requestAnimationFrame(updateLoop);
+        requestAnimationFrame(updateUI);
     };
 
-    // --- INITIALISATION ---
-    const init = async () => {
-        const overlay = document.getElementById('start-overlay');
-        overlay.style.opacity = '0';
-        setTimeout(() => overlay.remove(), 300);
+    const start = async () => {
+        document.getElementById('start-overlay').remove();
 
-        // 1. Orientation & Boussole
         window.addEventListener('deviceorientation', (e) => {
-            // Cap (iOS vs Android)
-            let rawHeading = e.webkitCompassHeading || (e.alpha ? (360 - e.alpha) : 0);
-            
-            // Gestion du passage 359->0 pour le lissage
-            let delta = rawHeading - smoothHeading;
-            if (delta > 180) delta -= 360;
-            if (delta < -180) delta += 360;
+            let heading = e.webkitCompassHeading || (360 - e.alpha);
+            let delta = heading - smoothHeading;
+            if (delta > 180) delta -= 360; if (delta < -180) delta += 360;
             smoothHeading += delta * alpha;
-            const heading = (smoothHeading + 360) % 360;
+            const finalH = (smoothHeading + 360) % 360;
 
-            document.getElementById('ui-ring').style.transform = `rotate(${-heading}deg)`;
-            document.getElementById('ui-heading').innerText = Math.round(heading) + "°";
-            const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
-            document.getElementById('ui-cardinal').innerText = dirs[Math.round(heading / 45) % 8];
-            document.getElementById('ui-tilt').innerText = `TILT: ${Math.round(e.beta)}°/${Math.round(e.gamma)}°`;
+            document.getElementById('ui-ring').style.transform = `rotate(${-finalH}deg)`;
+            document.getElementById('ui-heading').innerText = Math.round(finalH) + "°";
+            document.getElementById('ui-cardinal').innerText = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"][Math.round(finalH / 45) % 8];
+            document.getElementById('ui-tilt').innerText = `TILT: ${Math.round(e.beta)}° / ${Math.round(e.gamma)}°`;
         }, true);
 
-        // 2. Mouvement (Accel + Gyro)
         window.addEventListener('devicemotion', (e) => {
             const a = e.accelerationIncludingGravity || {x:0, y:0, z:0};
             engines.accel.update(a.x, a.y, a.z);
@@ -292,84 +262,61 @@
             engines.gyro.update(r.alpha, r.beta, r.gamma);
         });
 
-        // 3. GPS
         navigator.geolocation.watchPosition(p => {
-            const c = p.coords;
-            document.getElementById('gps_pos-text').innerText = `${c.latitude.toFixed(6)}, ${c.longitude.toFixed(6)}\nPrécision: ±${Math.round(c.accuracy)}m`;
-            document.getElementById('gps-alt').innerText = Math.round(c.altitude || 0);
-            document.getElementById('gps-spd').innerText = Math.round((c.speed || 0) * 3.6);
-        }, null, { enableHighAccuracy: true });
+            document.getElementById('gps_pos-text').innerText = `${p.coords.latitude.toFixed(6)}, ${p.coords.longitude.toFixed(6)}\nPrécision: ±${Math.round(p.coords.accuracy)}m`;
+            document.getElementById('gps-alt').innerText = Math.round(p.coords.altitude || 0);
+            document.getElementById('gps-spd').innerText = Math.round((p.coords.speed || 0) * 3.6);
+        }, null, {enableHighAccuracy:true});
 
-        // 4. Magnétomètre natif (si dispo)
-        if ('Magnetometer' in window) {
-            try {
-                const mag = new Magnetometer({frequency: 10});
-                mag.onreading = () => engines.mag.update(mag.x, mag.y, mag.z);
-                mag.start();
-            } catch(e){}
-        }
-
-        // 5. Batterie
-        if(navigator.getBattery) {
-            const uBat = async () => { const b = await navigator.getBattery(); engines.battery.update(b.level*100); };
-            uBat(); setInterval(uBat, 10000);
-        }
-
-        // 6. Réseau & Mémoire
+        // Gestion RÉSEAU CORRIGÉE
         setInterval(() => {
+            const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
+            const type = conn.type || "Inconnu"; // Détecte 'wifi', 'cellular', etc.
+            const latStart = Date.now();
+            fetch('https://www.google.com/generate_204', { mode: 'no-cors', cache: 'no-store' }).then(() => {
+                const ping = Date.now() - latStart;
+                document.getElementById('net-text').innerText = `Source: ${type.toUpperCase()}\nClasse: ${conn.effectiveType?.toUpperCase() || 'N/A'}\nDébit: ${conn.downlink || 0} Mbps\nPing: ${ping}ms`;
+            });
             if(performance.memory) engines.memory.update(performance.memory.usedJSHeapSize/1048576);
-            const conn = navigator.connection || {};
-            const start = Date.now();
-            fetch(window.location.href, {mode:'no-cors', cache:'no-store'}).then(()=>{
-                const lat = Date.now() - start;
-                document.getElementById('net-text').innerText = `${(conn.effectiveType||'4g').toUpperCase()} | ${conn.downlink||0} Mbps\nPing: ${lat}ms`;
-            });
-        }, 2000);
+        }, 3000);
 
-        // 7. Toucher
-        ['touchstart', 'touchmove', 'touchend'].forEach(evt => {
-            window.addEventListener(evt, (e) => {
-                let txt = `${e.touches.length} points`;
-                if(e.touches[0]) txt += `\nForce: ${e.touches[0].force.toFixed(2)}`;
-                document.getElementById('touch-text').innerText = txt;
-            });
+        if(navigator.getBattery) {
+            const b = await navigator.getBattery();
+            const updateB = () => engines.battery.update(b.level*100);
+            updateB(); b.addEventListener('levelchange', updateB);
+        }
+
+        window.addEventListener('touchstart', (e) => {
+            document.getElementById('touch-text').innerText = `Points: ${e.touches.length}\nForce: ${e.touches[0].force.toFixed(2)}`;
         });
 
-        // 8. Proximité (si supporté)
-        window.addEventListener('deviceproximity', (e) => engines.prox.update(e.value));
-
-        // 9. Lux (Caméra)
         initLux();
-        updateLoop();
+        updateUI();
     };
 
     const initLux = async () => {
         try {
-            const s = await navigator.mediaDevices.getUserMedia({video: {facingMode:'environment'}});
-            const v = document.getElementById('hidden-cam');
-            v.srcObject = s;
+            const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+            const v = document.getElementById('hidden-cam'); v.srcObject = s;
             const ctx = document.getElementById('lux-canvas').getContext('2d');
             setInterval(() => {
-                if(v.readyState === 4) {
-                    ctx.drawImage(v, 0, 0, 30, 30);
+                if(v.readyState===4) {
+                    ctx.drawImage(v,0,0,30,30);
                     const d = ctx.getImageData(0,0,30,30).data;
                     let l=0; for(let i=0; i<d.length; i+=4) l+=(d[i]+d[i+1]+d[i+2])/3;
                     engines.lux.update(l/(d.length/4));
                 }
-            }, 800);
-        } catch(e) {}
+            }, 1000);
+        } catch(e){}
     };
 
-    // Auto-boot au premier clic
-    document.addEventListener('click', async () => {
-        if(!window.isRunning) {
-            window.isRunning = true;
-            if(typeof DeviceOrientationEvent?.requestPermission==='function') {
-                try { await DeviceOrientationEvent.requestPermission(); await DeviceMotionEvent.requestPermission(); } catch(e){}
-            }
-            init();
+    document.getElementById('start-overlay').onclick = async () => {
+        if(typeof DeviceOrientationEvent?.requestPermission==='function') {
+            await DeviceOrientationEvent.requestPermission();
+            await DeviceMotionEvent.requestPermission();
         }
-    }, {once:true});
+        start();
+    };
 }
 </script>
 </body>
