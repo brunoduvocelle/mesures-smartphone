@@ -598,8 +598,9 @@
 {
     // Classe de stockage et de statistiques pour les capteurs
     class DataEngine {
-        constructor(bufferSize = 40) {
+        constructor(bufferSize = 40, smoothing = 1.0) {
             this.bufferSize = bufferSize;
+            this.smoothing = smoothing;
             this.reset();
         }
         reset() {
@@ -612,9 +613,14 @@
         }
         update(x, y = null, z = null) {
             if (y !== null && z !== null) {
-                this._push('x', x); this._push('y', y); this._push('z', z);
+                // Filtre passe-bas exponentiel : cur = cur + (new - cur) * smoothing
+                const nx = this.data.x.cur + (x - this.data.x.cur) * this.smoothing;
+                const ny = this.data.y.cur + (y - this.data.y.cur) * this.smoothing;
+                const nz = this.data.z.cur + (z - this.data.z.cur) * this.smoothing;
+                this._push('x', nx); this._push('y', ny); this._push('z', nz);
             } else {
-                this._push('s', x);
+                const ns = this.data.s.cur + (x - this.data.s.cur) * this.smoothing;
+                this._push('s', ns);
             }
         }
         _push(key, val) {
@@ -646,6 +652,13 @@
         { id: 'touch', name: "Pression Tactile", unit: "Points / Force", type: 'text' }
     ];
 
+    const smoothingFactors = {
+        accel: 0.15, // Lissage important pour éliminer les micro-vibrations
+        gyro: 0.12,  // Lissage important pour le gyroscope
+        mag: 0.18,   // Lissage du magnétomètre
+        baro: 0.3    // Léger lissage pour la pression
+    };
+
     const engines = {};
     const fmt = (v) => (v !== undefined && v !== null) ? v.toFixed(2) : "0.00";
 
@@ -653,7 +666,8 @@
     
     // Génération dynamique des cartes de télémétrie
     metrics.forEach(m => {
-        engines[m.id] = new DataEngine();
+        const smoothing = smoothingFactors[m.id] !== undefined ? smoothingFactors[m.id] : 1.0;
+        engines[m.id] = new DataEngine(40, smoothing);
         const card = document.createElement('div');
         card.className = `card ${m.full ? 'full' : ''}`;
         card.id = `card-${m.id}`;
