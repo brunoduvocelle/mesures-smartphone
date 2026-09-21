@@ -774,29 +774,28 @@
             <span class="status-badge active" id="odo-master-status">PRÊT</span>
         </div>
         <div class="odo-grid">
-            <!-- 1. RÈGLE INERTIELLE (ZUPT) -->
+            <!-- 1. INTÉGRATION INERTIELLE (START / STOP) -->
             <div class="odo-block">
                 <div>
                     <div class="odo-block-title">
-                        <span>RÈGLE INERTIELLE (GESTES COURTS)</span>
+                        <span>INTÉGRATION INERTIELLE (START / STOP)</span>
                         <span class="status-badge" id="zupt-status-badge">Prêt</span>
                     </div>
                     <div class="odo-val-main" id="zupt-dist-val">0.0 <span>cm</span></div>
-                    <div class="progress-bar-zupt">
-                        <div class="progress-bar-zupt-fill" id="zupt-time-bar"></div>
-                    </div>
                     <div class="odo-sub" id="zupt-details" style="margin-top:6px;">
-                        Vitesse est. : 0.00 m/s | Repos<br>
-                        Axes 3D : X: 0 | Y: 0 | Z: 0 cm
+                        Chrono : <strong style="color:var(--warn);" id="zupt-timer">00:00.0</strong> | Vit: <span id="zupt-speed">0.00</span> m/s (Max: <span id="zupt-speed-max">0.00</span>)<br>
+                        Ligne droite : <span id="zupt-dist-direct">0.0 cm</span> | Trajet cumulé : <span id="zupt-dist-path">0.0 cm</span><br>
+                        Axes : X: <span id="zupt-pos-x">0</span> | Y: <span id="zupt-pos-y">0</span> | Z: <span id="zupt-pos-z">0</span> cm
                     </div>
                 </div>
                 <div>
                     <div class="odo-btn-group">
-                        <button class="odo-btn btn-accent" id="btn-zupt-start">▶ MESURER GESTE (2.5s)</button>
+                        <button class="odo-btn btn-accent" id="btn-zupt-toggle" style="font-weight:700; padding:7px 14px;">▶ TOP DÉPART</button>
                         <button class="odo-btn" id="btn-zupt-reset">RÀZ</button>
+                        <button class="odo-btn" id="btn-zupt-mode" title="Activer/Désactiver le filtre ZUPT">FILTRE ZUPT: OUI</button>
                     </div>
                     <div class="odo-sub" style="font-size:10px; margin-top:5px; opacity:0.75;">
-                        Posez le téléphone, cliquez, bougez puis arrêtez-vous (correction auto de dérive ZUPT).
+                        Cliquez sur DÉPART, déplacez le téléphone aussi longtemps que souhaité, puis cliquez sur FIN.
                     </div>
                 </div>
             </div>
@@ -1134,52 +1133,152 @@
     // MODULE D'ODOMÉTRIE ET DE MESURE DE DISTANCE
     // ==========================================
 
-    // --- 1. RÈGLE INERTIELLE (ZUPT) ---
-    let zuptState = 'idle'; // 'idle' | 'calibrating' | 'measuring' | 'done'
+    // --- 1. INTÉGRATION INERTIELLE (START / STOP MANUEL) ---
+    let zuptRunning = false;
+    let zuptCalibrating = false;
+    let zuptEnableFilter = true; // Permet de comparer AVEC ou SANS filtre ZUPT
     let zuptStartTime = 0;
-    const ZUPT_CALIB_MS = 500;
-    const ZUPT_MEASURE_MS = 2500;
+    let zuptElapsedMs = 0;
     let zuptCalibSamples = [];
     let zuptBias = { x: 0, y: 0, z: 0 };
     let zuptVel = { x: 0, y: 0, z: 0 };
     let zuptPos = { x: 0, y: 0, z: 0 };
+    let zuptPathDistance = 0;
+    let zuptMaxSpeed = 0;
     let zuptRestCount = 0;
     let lastZuptTime = 0;
     let gravEst = { x: 0, y: 0, z: 9.81 }; // Filtre pour séparer la gravité si non supporté nativement
 
-    const startZupt = () => {
-        zuptState = 'calibrating';
-        zuptStartTime = performance.now();
-        lastZuptTime = performance.now();
-        zuptCalibSamples = [];
-        zuptVel = { x: 0, y: 0, z: 0 };
-        zuptPos = { x: 0, y: 0, z: 0 };
-        zuptRestCount = 0;
-        const badge = document.getElementById('zupt-status-badge');
-        if (badge) {
-            badge.innerText = "Calibrage (0.5s)...";
-            badge.className = "status-badge warn";
+    const formatChrono = (ms) => {
+        const totalSec = Math.floor(ms / 1000);
+        const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
+        const s = (totalSec % 60).toString().padStart(2, '0');
+        const tenths = Math.floor((ms % 1000) / 100);
+        return `${m}:${s}.${tenths}`;
+    };
+
+    const formatDistanceHtml = (meters) => {
+        const cm = meters * 100;
+        if (Math.abs(cm) < 100) {
+            return `${cm.toFixed(1)} <span>cm</span>`;
+        } else if (Math.abs(meters) < 1000) {
+            return `${meters.toFixed(2)} <span>m</span>`;
+        } else {
+            return `${(meters / 1000).toFixed(3)} <span>km</span>`;
         }
-        const timeBar = document.getElementById('zupt-time-bar');
-        if (timeBar) timeBar.style.width = "0%";
+    };
+
+    const formatDistanceShort = (meters) => {
+        const cm = meters * 100;
+        if (Math.abs(cm) < 100) {
+            return `${cm.toFixed(1)} cm`;
+        } else {
+            return `${meters.toFixed(2)} m`;
+        }
+    };
+
+    const toggleZuptMeasure = () => {
+        if (!zuptRunning) {
+            zuptRunning = true;
+            zuptCalibrating = true;
+            zuptCalibSamples = [];
+            zuptStartTime = performance.now();
+            lastZuptTime = performance.now();
+            zuptElapsedMs = 0;
+            zuptVel = { x: 0, y: 0, z: 0 };
+            zuptPos = { x: 0, y: 0, z: 0 };
+            zuptPathDistance = 0;
+            zuptMaxSpeed = 0;
+            zuptRestCount = 0;
+
+            const btn = document.getElementById('btn-zupt-toggle');
+            if (btn) {
+                btn.innerText = "⏹ STOP / FIN";
+                btn.style.background = "rgba(239, 68, 68, 0.25)";
+                btn.style.borderColor = "var(--danger)";
+                btn.style.color = "#fff";
+            }
+            const badge = document.getElementById('zupt-status-badge');
+            if (badge) {
+                badge.innerText = "Calibrage...";
+                badge.className = "status-badge warn";
+            }
+        } else {
+            zuptRunning = false;
+            zuptCalibrating = false;
+            zuptVel = { x: 0, y: 0, z: 0 };
+
+            const btn = document.getElementById('btn-zupt-toggle');
+            if (btn) {
+                btn.innerText = "▶ NOUVEAU DÉPART";
+                btn.style.background = "rgba(16, 185, 129, 0.2)";
+                btn.style.borderColor = "var(--accent)";
+                btn.style.color = "#fff";
+            }
+            const badge = document.getElementById('zupt-status-badge');
+            if (badge) {
+                badge.innerText = "Mesure terminée";
+                badge.className = "status-badge active";
+            }
+            const spdEl = document.getElementById('zupt-speed');
+            if (spdEl) spdEl.innerText = "0.00";
+        }
     };
 
     const resetZupt = () => {
-        zuptState = 'idle';
+        zuptRunning = false;
+        zuptCalibrating = false;
         zuptVel = { x: 0, y: 0, z: 0 };
         zuptPos = { x: 0, y: 0, z: 0 };
+        zuptPathDistance = 0;
+        zuptMaxSpeed = 0;
+        zuptElapsedMs = 0;
         zuptRestCount = 0;
-        const distEl = document.getElementById('zupt-dist-val');
-        if (distEl) distEl.innerHTML = "0.0 <span>cm</span>";
-        const detEl = document.getElementById('zupt-details');
-        if (detEl) detEl.innerHTML = "Vitesse est. : 0.00 m/s | Repos<br>Axes 3D : X: 0 | Y: 0 | Z: 0 cm";
+
+        const btn = document.getElementById('btn-zupt-toggle');
+        if (btn) {
+            btn.innerText = "▶ TOP DÉPART";
+            btn.style.background = "rgba(16, 185, 129, 0.2)";
+            btn.style.borderColor = "var(--accent)";
+            btn.style.color = "#fff";
+        }
         const badge = document.getElementById('zupt-status-badge');
         if (badge) {
             badge.innerText = "Prêt";
             badge.className = "status-badge";
         }
-        const timeBar = document.getElementById('zupt-time-bar');
-        if (timeBar) timeBar.style.width = "0%";
+        const distEl = document.getElementById('zupt-dist-val');
+        if (distEl) distEl.innerHTML = "0.0 <span>cm</span>";
+        const timerEl = document.getElementById('zupt-timer');
+        if (timerEl) timerEl.innerText = "00:00.0";
+        const spdEl = document.getElementById('zupt-speed');
+        if (spdEl) spdEl.innerText = "0.00";
+        const spdMaxEl = document.getElementById('zupt-speed-max');
+        if (spdMaxEl) spdMaxEl.innerText = "0.00";
+        const dirEl = document.getElementById('zupt-dist-direct');
+        if (dirEl) dirEl.innerText = "0.0 cm";
+        const pathEl = document.getElementById('zupt-dist-path');
+        if (pathEl) pathEl.innerText = "0.0 cm";
+        const pxEl = document.getElementById('zupt-pos-x');
+        if (pxEl) pxEl.innerText = "0";
+        const pyEl = document.getElementById('zupt-pos-y');
+        if (pyEl) pyEl.innerText = "0";
+        const pzEl = document.getElementById('zupt-pos-z');
+        if (pzEl) pzEl.innerText = "0";
+    };
+
+    const toggleZuptMode = () => {
+        zuptEnableFilter = !zuptEnableFilter;
+        const btn = document.getElementById('btn-zupt-mode');
+        if (btn) {
+            if (zuptEnableFilter) {
+                btn.innerText = "FILTRE ZUPT: OUI";
+                btn.style.color = "var(--accent)";
+            } else {
+                btn.innerText = "FILTRE ZUPT: NON (BRUT)";
+                btn.style.color = "var(--warn)";
+            }
+        }
     };
 
     // --- 2. PODOMÈTRE & MARCHE ---
@@ -1304,103 +1403,118 @@
                 lin = { x: a.x - gravEst.x, y: a.y - gravEst.y, z: a.z - gravEst.z };
             }
 
-            const nowZupt = performance.now();
-
-            if (zuptState === 'calibrating') {
-                zuptCalibSamples.push({ x: lin.x, y: lin.y, z: lin.z });
-                const elapsed = nowZupt - zuptStartTime;
-                const pct = Math.min((elapsed / ZUPT_CALIB_MS) * 100, 100);
-                const bar = document.getElementById('zupt-time-bar');
-                if (bar) bar.style.width = pct + '%';
-
-                if (elapsed >= ZUPT_CALIB_MS) {
-                    const cnt = zuptCalibSamples.length || 1;
-                    zuptBias.x = zuptCalibSamples.reduce((s, c) => s + c.x, 0) / cnt;
-                    zuptBias.y = zuptCalibSamples.reduce((s, c) => s + c.y, 0) / cnt;
-                    zuptBias.z = zuptCalibSamples.reduce((s, c) => s + c.z, 0) / cnt;
-                    zuptState = 'measuring';
-                    zuptStartTime = performance.now();
-                    lastZuptTime = performance.now();
-                    const badge = document.getElementById('zupt-status-badge');
-                    if (badge) {
-                        badge.innerText = "BOUGEZ !";
-                        badge.className = "status-badge warn";
-                    }
-                }
-            } else if (zuptState === 'measuring') {
+            // --- TRAITEMENT INTÉGRATION INERTIELLE (START / STOP LIBRE) ---
+            if (zuptRunning) {
+                const nowZupt = performance.now();
                 let dt = (nowZupt - lastZuptTime) / 1000;
                 lastZuptTime = nowZupt;
                 if (dt <= 0 || dt > 0.1) dt = 0.016;
 
-                // Retrait du biais mesuré lors de la calibration
-                let ax = lin.x - zuptBias.x;
-                let ay = lin.y - zuptBias.y;
-                let az = lin.z - zuptBias.z;
+                zuptElapsedMs = nowZupt - zuptStartTime;
+                const timerEl = document.getElementById('zupt-timer');
+                if (timerEl) timerEl.innerText = formatChrono(zuptElapsedMs);
 
-                // Deadband filter : supprime le bruit blanc
-                if (Math.abs(ax) < 0.08) ax = 0;
-                if (Math.abs(ay) < 0.08) ay = 0;
-                if (Math.abs(az) < 0.08) az = 0;
-
-                const aMag = Math.sqrt(ax * ax + ay * ay + az * az);
-                const badge = document.getElementById('zupt-status-badge');
-
-                // ZUPT (Zero-Velocity Update) : Détection de phase d'arrêt
-                if (aMag < 0.12) {
-                    zuptRestCount++;
-                    if (zuptRestCount > 8) {
-                        // Arrêt détecté : on verrouille la vitesse à zéro pour stopper toute dérive quadratique
-                        zuptVel.x = 0;
-                        zuptVel.y = 0;
-                        zuptVel.z = 0;
+                if (zuptCalibrating) {
+                    zuptCalibSamples.push({ x: lin.x, y: lin.y, z: lin.z });
+                    // Calibration initiale rapide de 350ms
+                    if (zuptElapsedMs >= 350) {
+                        const cnt = zuptCalibSamples.length || 1;
+                        zuptBias.x = zuptCalibSamples.reduce((s, c) => s + c.x, 0) / cnt;
+                        zuptBias.y = zuptCalibSamples.reduce((s, c) => s + c.y, 0) / cnt;
+                        zuptBias.z = zuptCalibSamples.reduce((s, c) => s + c.z, 0) / cnt;
+                        zuptCalibrating = false;
+                        const badge = document.getElementById('zupt-status-badge');
                         if (badge) {
-                            badge.innerText = "ZUPT (Arrêt)";
-                            badge.className = "status-badge active";
+                            badge.innerText = "Enregistrement...";
+                            badge.className = "status-badge warn";
                         }
                     }
                 } else {
-                    zuptRestCount = 0;
-                    zuptVel.x += ax * dt;
-                    zuptVel.y += ay * dt;
-                    zuptVel.z += az * dt;
-                    // Léger frottement numérique anti-emballement
-                    zuptVel.x *= 0.985;
-                    zuptVel.y *= 0.985;
-                    zuptVel.z *= 0.985;
-                    if (badge) {
-                        badge.innerText = "En mouvement";
-                        badge.className = "status-badge warn";
+                    // Retrait du biais mesuré
+                    let ax = lin.x - zuptBias.x;
+                    let ay = lin.y - zuptBias.y;
+                    let az = lin.z - zuptBias.z;
+
+                    if (zuptEnableFilter) {
+                        // Filtre seuil de bruit (deadband)
+                        if (Math.abs(ax) < 0.08) ax = 0;
+                        if (Math.abs(ay) < 0.08) ay = 0;
+                        if (Math.abs(az) < 0.08) az = 0;
+
+                        const aMag = Math.sqrt(ax * ax + ay * ay + az * az);
+                        const badge = document.getElementById('zupt-status-badge');
+
+                        // Détection ZUPT (Zero-Velocity Update)
+                        if (aMag < 0.12) {
+                            zuptRestCount++;
+                            if (zuptRestCount > 7) {
+                                // Forcer vitesse à 0 à l'arrêt pour stopper net la dérive
+                                zuptVel.x = 0;
+                                zuptVel.y = 0;
+                                zuptVel.z = 0;
+                                if (badge) {
+                                    badge.innerText = "ZUPT (Repos)";
+                                    badge.className = "status-badge active";
+                                }
+                            }
+                        } else {
+                            zuptRestCount = 0;
+                            zuptVel.x += ax * dt;
+                            zuptVel.y += ay * dt;
+                            zuptVel.z += az * dt;
+                            // Frottement numérique pour préserver la stabilité
+                            zuptVel.x *= 0.988;
+                            zuptVel.y *= 0.988;
+                            zuptVel.z *= 0.988;
+                            if (badge) {
+                                badge.innerText = "En mouvement";
+                                badge.className = "status-badge warn";
+                            }
+                        }
+                    } else {
+                        // Mode Brut : intégration directe
+                        zuptVel.x += ax * dt;
+                        zuptVel.y += ay * dt;
+                        zuptVel.z += az * dt;
+                        const badge = document.getElementById('zupt-status-badge');
+                        if (badge) {
+                            badge.innerText = "Intégration brute";
+                            badge.className = "status-badge warn";
+                        }
                     }
-                }
 
-                // Intégration de la position
-                zuptPos.x += zuptVel.x * dt;
-                zuptPos.y += zuptVel.y * dt;
-                zuptPos.z += zuptVel.z * dt;
+                    // Intégration de la position
+                    zuptPos.x += zuptVel.x * dt;
+                    zuptPos.y += zuptVel.y * dt;
+                    zuptPos.z += zuptVel.z * dt;
 
-                const dist3D_cm = Math.sqrt(zuptPos.x * zuptPos.x + zuptPos.y * zuptPos.y + zuptPos.z * zuptPos.z) * 100;
-                const curSpd = Math.sqrt(zuptVel.x * zuptVel.x + zuptVel.y * zuptVel.y + zuptVel.z * zuptVel.z);
+                    // Métriques de distance et vitesse
+                    const curSpeed = Math.sqrt(zuptVel.x * zuptVel.x + zuptVel.y * zuptVel.y + zuptVel.z * zuptVel.z);
+                    if (curSpeed > zuptMaxSpeed) zuptMaxSpeed = curSpeed;
 
-                const distEl = document.getElementById('zupt-dist-val');
-                if (distEl) distEl.innerHTML = `${dist3D_cm.toFixed(1)} <span>cm</span>`;
+                    zuptPathDistance += curSpeed * dt;
+                    const directDist = Math.sqrt(zuptPos.x * zuptPos.x + zuptPos.y * zuptPos.y + zuptPos.z * zuptPos.z);
 
-                const detEl = document.getElementById('zupt-details');
-                if (detEl) {
-                    detEl.innerHTML = `Vitesse est. : ${curSpd.toFixed(2)} m/s | ${badge ? badge.innerText : ''}<br>Axes 3D : X: ${(zuptPos.x * 100).toFixed(0)} | Y: ${(zuptPos.y * 100).toFixed(0)} | Z: ${(zuptPos.z * 100).toFixed(0)} cm`;
-                }
+                    // Mise à jour de l'affichage
+                    const distEl = document.getElementById('zupt-dist-val');
+                    if (distEl) distEl.innerHTML = formatDistanceHtml(directDist);
 
-                const elapsed = nowZupt - zuptStartTime;
-                const pct = Math.min((elapsed / ZUPT_MEASURE_MS) * 100, 100);
-                const bar = document.getElementById('zupt-time-bar');
-                if (bar) bar.style.width = pct + '%';
+                    const spdEl = document.getElementById('zupt-speed');
+                    if (spdEl) spdEl.innerText = curSpeed.toFixed(2);
+                    const spdMaxEl = document.getElementById('zupt-speed-max');
+                    if (spdMaxEl) spdMaxEl.innerText = zuptMaxSpeed.toFixed(2);
 
-                if (elapsed >= ZUPT_MEASURE_MS) {
-                    zuptState = 'done';
-                    zuptVel = { x: 0, y: 0, z: 0 };
-                    if (badge) {
-                        badge.innerText = "Mesure finie";
-                        badge.className = "status-badge active";
-                    }
+                    const dirEl = document.getElementById('zupt-dist-direct');
+                    if (dirEl) dirEl.innerText = formatDistanceShort(directDist);
+                    const pathEl = document.getElementById('zupt-dist-path');
+                    if (pathEl) pathEl.innerText = formatDistanceShort(zuptPathDistance);
+
+                    const pxEl = document.getElementById('zupt-pos-x');
+                    if (pxEl) pxEl.innerText = (zuptPos.x * 100).toFixed(0);
+                    const pyEl = document.getElementById('zupt-pos-y');
+                    if (pyEl) pyEl.innerText = (zuptPos.y * 100).toFixed(0);
+                    const pzEl = document.getElementById('zupt-pos-z');
+                    if (pzEl) pzEl.innerText = (zuptPos.z * 100).toFixed(0);
                 }
             }
         });
@@ -1619,10 +1733,12 @@
         const id = e.target.id;
         if (id === 'btn-lux') {
             initLux();
-        } else if (id === 'btn-zupt-start') {
-            startZupt();
+        } else if (id === 'btn-zupt-toggle') {
+            toggleZuptMeasure();
         } else if (id === 'btn-zupt-reset') {
             resetZupt();
+        } else if (id === 'btn-zupt-mode') {
+            toggleZuptMode();
         } else if (id === 'btn-step-minus') {
             stepStrideCm = Math.max(30, stepStrideCm - 5);
             const el = document.getElementById('step-stride-val');
