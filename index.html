@@ -3,19 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D MOTION TRACKER & ODOMETRY</title>
-    <!-- Fonts Cyberpunk / Cockpit haut de gamme -->
+    <title>3D INERTIAL TRACKER - ZERO ORIGIN</title>
+    <!-- Fonts Cockpit / Telemetry haut de gamme -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #030712;
-            --card-bg: rgba(17, 24, 39, 0.75);
-            --card-border: rgba(99, 102, 241, 0.2);
-            --card-border-hover: rgba(99, 102, 241, 0.5);
+            --card-bg: rgba(17, 24, 39, 0.85);
+            --card-border: rgba(16, 185, 129, 0.25);
             --accent: #10b981; /* Vert émeraude */
-            --accent-glow: rgba(16, 185, 129, 0.25);
+            --accent-glow: rgba(16, 185, 129, 0.35);
             --primary: #6366f1; /* Indigo */
-            --primary-glow: rgba(99, 102, 241, 0.35);
             --text: #f3f4f6;
             --label: #9ca3af;
             --warn: #f59e0b;
@@ -33,13 +31,12 @@
         body {
             background-color: var(--bg);
             background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+                radial-gradient(at 50% 0%, rgba(16, 185, 129, 0.12) 0px, transparent 60%),
+                radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.08) 0px, transparent 50%);
             color: var(--text);
             font-family: 'Rajdhani', sans-serif;
             margin: 0;
             padding: 16px;
-            padding-bottom: 40px;
             font-size: 14px;
             user-select: none;
             overflow-x: hidden;
@@ -51,14 +48,14 @@
             align-items: center;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             padding-bottom: 12px;
-            margin-bottom: 18px;
+            margin-bottom: 20px;
         }
 
         h1 {
             font-family: 'Orbitron', sans-serif;
             font-weight: 900;
             color: var(--text);
-            font-size: 17px;
+            font-size: 16px;
             margin: 0;
             letter-spacing: 2px;
             display: flex;
@@ -73,66 +70,53 @@
             padding: 2px 8px;
             border-radius: 4px;
             border: 1px solid var(--accent-glow);
-            letter-spacing: 1px;
         }
 
         .status-badge {
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 10px;
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 12px;
             font-family: 'Share Tech Mono', monospace;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .status-badge.active {
-            background: rgba(16, 185, 129, 0.15);
-            border-color: rgba(16, 185, 129, 0.4);
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--accent);
             color: var(--accent);
         }
         .status-badge.warn {
-            background: rgba(245, 158, 11, 0.15);
-            border-color: rgba(245, 158, 11, 0.4);
+            background: rgba(245, 158, 11, 0.2);
+            border-color: var(--warn);
             color: var(--warn);
         }
-        .status-badge.error {
-            background: rgba(239, 68, 68, 0.15);
-            border-color: rgba(239, 68, 68, 0.4);
-            color: var(--danger);
-        }
 
-        /* --- DASHBOARD LAYOUT --- */
         .container {
+            max-width: 800px;
+            margin: 0 auto;
             display: flex;
             flex-direction: column;
             gap: 16px;
-            max-width: 900px;
-            margin: 0 auto;
         }
 
         .card {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-radius: 12px;
-            padding: 18px;
-            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
             position: relative;
-            overflow: hidden;
         }
 
         .card::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
+            top: 0; left: 0; width: 4px; height: 100%;
             background: var(--accent);
-        }
-
-        .card.secondary::before {
-            background: var(--primary);
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
         }
 
         .card-header {
@@ -141,7 +125,7 @@
             align-items: center;
             border-bottom: 1px solid rgba(255, 255, 255, 0.06);
             padding-bottom: 10px;
-            margin-bottom: 14px;
+            margin-bottom: 16px;
         }
 
         .card-title {
@@ -150,34 +134,80 @@
             font-weight: 700;
             letter-spacing: 1.5px;
             color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
 
-        /* Value Display */
-        .main-display {
+        /* Large Centered Main Display */
+        .target-display {
+            text-align: center;
+            padding: 16px 0;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            margin-bottom: 16px;
+        }
+
+        .target-label {
             font-family: 'Orbitron', sans-serif;
-            font-size: 42px;
-            font-weight: 900;
-            color: #fff;
-            line-height: 1;
-            margin: 10px 0 14px 0;
-            text-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
-            display: flex;
-            align-items: baseline;
-            gap: 6px;
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: var(--label);
+            margin-bottom: 6px;
         }
 
-        .main-display span {
-            font-size: 18px;
+        .target-val {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 54px;
+            font-weight: 900;
+            color: var(--accent);
+            line-height: 1;
+            text-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .target-val span {
+            font-size: 20px;
             color: var(--label);
-            font-weight: 500;
+            font-family: 'Share Tech Mono', monospace;
+            font-weight: normal;
+        }
+
+        /* 3D Axis Breakdown Grid */
+        .axes-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .axis-card {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
             font-family: 'Share Tech Mono', monospace;
         }
 
-        /* Grid metrics */
-        .stats-grid {
+        .axis-title {
+            font-weight: bold;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+        .ax-x { background: var(--axis-x); color: #fff; }
+        .ax-y { background: var(--axis-y); color: #000; }
+        .ax-z { background: var(--axis-z); color: #fff; }
+
+        .axis-value {
+            font-size: 22px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        /* Metrics Telemetry Table */
+        .telemetry-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
@@ -188,140 +218,76 @@
             font-family: 'Share Tech Mono', monospace;
             font-size: 12px;
             color: var(--label);
-            margin-bottom: 14px;
+            margin-bottom: 16px;
         }
 
-        @media(min-width: 600px) {
-            .stats-grid {
-                grid-template-columns: repeat(3, 1fr);
+        @media(min-width: 550px) {
+            .telemetry-grid {
+                grid-template-columns: repeat(4, 1fr);
             }
         }
 
-        .stat-item {
+        .t-item {
             display: flex;
             flex-direction: column;
             gap: 2px;
         }
 
-        .stat-label {
-            font-size: 10px;
+        .t-label {
+            font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: var(--label);
-            opacity: 0.8;
+            opacity: 0.7;
         }
 
-        .stat-val {
+        .t-val {
             color: #fff;
             font-weight: bold;
-            font-size: 13px;
+            font-size: 12px;
         }
 
-        .stat-val.accent { color: var(--accent); }
-        .stat-val.primary { color: var(--primary); }
-        .stat-val.warn { color: var(--warn); }
-
-        /* Axis Breakdown */
-        .axes-container {
-            display: flex;
-            gap: 12px;
-            margin-top: 4px;
-            font-family: 'Share Tech Mono', monospace;
-        }
-
-        .axis-box {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 6px;
-            padding: 8px;
-            text-align: center;
-        }
-
-        .axis-tag {
-            font-weight: bold;
-            font-size: 10px;
-            padding: 1px 6px;
-            border-radius: 3px;
-            display: inline-block;
-            margin-bottom: 4px;
-            color: #000;
-        }
-        .tag-x { background: var(--axis-x); color: #fff; }
-        .tag-y { background: var(--axis-y); color: #000; }
-        .tag-z { background: var(--axis-z); color: #fff; }
-
-        .axis-num {
-            font-size: 14px;
-            font-weight: bold;
-            color: #fff;
-        }
-
-        /* Control Buttons */
+        /* Action Buttons */
         .btn-row {
             display: flex;
-            gap: 8px;
+            gap: 10px;
             flex-wrap: wrap;
-            margin-top: 6px;
         }
 
         .btn {
+            flex: 1;
+            min-width: 140px;
             background: rgba(99, 102, 241, 0.15);
-            border: 1px solid var(--primary-glow);
+            border: 1px solid var(--card-border);
             color: var(--text);
-            font-family: 'Rajdhani', sans-serif;
+            font-family: 'Orbitron', sans-serif;
             font-weight: 700;
             font-size: 13px;
-            padding: 9px 18px;
-            border-radius: 6px;
+            padding: 14px;
+            border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s ease;
             letter-spacing: 1px;
+            text-align: center;
         }
 
-        .btn:hover {
-            background: var(--primary);
-            box-shadow: 0 0 12px var(--primary-glow);
-        }
-
-        .btn.btn-start {
-            background: rgba(16, 185, 129, 0.2);
+        .btn-start {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.3) 100%);
             border-color: var(--accent);
             color: #fff;
-        }
-        .btn.btn-start:hover {
-            background: var(--accent);
             box-shadow: 0 0 15px var(--accent-glow);
         }
+        .btn-start:hover {
+            background: var(--accent);
+            color: #000;
+        }
 
-        .btn.btn-stop {
-            background: rgba(239, 68, 68, 0.25);
+        .btn-stop {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(185, 28, 28, 0.35) 100%);
             border-color: var(--danger);
             color: #fff;
         }
-        .btn.btn-stop:hover {
+        .btn-stop:hover {
             background: var(--danger);
-            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
-        }
-
-        .btn-small {
-            padding: 4px 10px;
-            font-size: 11px;
-            border-radius: 4px;
-            font-family: 'Share Tech Mono', monospace;
-        }
-
-        /* 2 Columns grid for lower modules */
-        .grid-2 {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 16px;
-        }
-
-        @media(min-width: 650px) {
-            .grid-2 {
-                grid-template-columns: repeat(2, 1fr);
-            }
         }
 
         /* OVERLAY INITIALISATION */
@@ -344,155 +310,94 @@
             border: none;
             font-family: 'Orbitron', sans-serif;
             font-weight: 700;
-            font-size: 15px;
+            font-size: 14px;
             padding: 16px 32px;
             border-radius: 8px;
             cursor: pointer;
             letter-spacing: 2px;
             box-shadow: 0 0 25px var(--accent-glow);
-            transition: all 0.3s ease;
-        }
-        .start-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 35px var(--accent-glow);
         }
     </style>
 </head>
 <body>
 
-    <!-- Overlay Autorisation Capteurs -->
+    <!-- Overlay Autorisation -->
     <div id="start-overlay">
-        <div style="font-size:64px; margin-bottom:16px;">📐</div>
-        <div style="font-family:'Orbitron', sans-serif; font-size:22px; font-weight:900; color:#fff; letter-spacing:2px; margin-bottom:8px;">ODOMÉTRIE INERTIELLE 3D</div>
+        <div style="font-size:64px; margin-bottom:16px;">🎯</div>
+        <div style="font-family:'Orbitron', sans-serif; font-size:20px; font-weight:900; color:#fff; letter-spacing:2px; margin-bottom:8px;">TEST DÉPLACEMENT 0 CM</div>
         <div style="font-size:13px; color:var(--label); max-width:340px; margin-bottom:28px; line-height:1.5;">
-            Accès requis à l'accéléromètre, au gyroscope et à l'orientation du smartphone pour calculer la distance de déplacement.
+            Posez le téléphone sur la table, activez les capteurs, déplacez le téléphone puis reposez-le sur la table au même endroit.
         </div>
-        <button class="start-btn" id="btn-activate">INITIALISER LES CAPTEURS</button>
+        <button class="start-btn" id="btn-activate">INITIALISER CAPTEURS 3D</button>
     </div>
 
     <header>
-        <h1>ODOMETRY <span>3D TRACKER</span></h1>
-        <div class="status-badge active" id="sys-status">CAPTEURS PRÊTS</div>
+        <h1>PRECISION 3D <span>RETURN TO ZERO</span></h1>
+        <div class="status-badge active" id="sys-status">SYSTÈME PRÊT</div>
     </header>
 
     <div class="container">
 
-        <!-- PANNEAU PRINCIPAL : INTÉGRATION INERTIELLE (START / STOP) -->
         <div class="card">
             <div class="card-header">
-                <div class="card-title">⚡ MESURE DE DÉPLACEMENT 3D (START / STOP)</div>
-                <span class="status-badge" id="odo-status">Prêt</span>
+                <div class="card-title">📐 DÉCALAGE PAR RAPPORT À L'ORIGINE TABLE</div>
+                <span class="status-badge" id="odo-status">Sur la table (Origine)</span>
             </div>
 
-            <!-- Grand affichage Distance Directe -->
-            <div class="main-display" id="odo-dist-main">0.0 <span>cm</span></div>
+            <!-- Grand Affichage de la Distance du Point de Départ -->
+            <div class="target-display">
+                <div class="target-label">ÉCARD DE POSITION 3D CIBLÉ (OBJECTIF: 0.0 CM)</div>
+                <div class="target-val" id="dist-total">0.0 <span>cm</span></div>
+            </div>
 
-            <!-- Grille de métriques en direct -->
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <span class="stat-label">Chronomètre</span>
-                    <span class="stat-val warn" id="odo-timer">00:00.0</span>
+            <!-- Décomposition Spatiale X, Y, Z -->
+            <div class="axes-grid">
+                <div class="axis-card">
+                    <span class="axis-title ax-x">AXE X (LATÉRAL)</span>
+                    <div class="axis-value" id="val-x">0.0 cm</div>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">Vitesse Instantanée</span>
-                    <span class="stat-val" id="odo-speed">0.00 m/s</span>
+                <div class="axis-card">
+                    <span class="axis-title ax-y">AXE Y (LONGITUDINAL)</span>
+                    <div class="axis-value" id="val-y">0.0 cm</div>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">Vitesse Maximale</span>
-                    <span class="stat-val accent" id="odo-speed-max">0.00 m/s</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Trajet Cumulé</span>
-                    <span class="stat-val primary" id="odo-dist-path">0.0 cm</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Ligne Droite</span>
-                    <span class="stat-val" id="odo-dist-direct">0.0 cm</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Orientation 3D</span>
-                    <span class="stat-val" id="odo-tilt">R:0° | P:0°</span>
+                <div class="axis-card">
+                    <span class="axis-title ax-z">AXE Z (HAUTEUR)</span>
+                    <div class="axis-value" id="val-z">0.0 cm</div>
                 </div>
             </div>
 
-            <!-- Décomposition spatiale X, Y, Z -->
-            <div style="font-family:'Orbitron', sans-serif; font-size:10px; color:var(--label); margin-bottom:6px; letter-spacing:1px;">VECTEUR DÉPLACEMENT SPATIAL :</div>
-            <div class="axes-container">
-                <div class="axis-box">
-                    <span class="axis-tag tag-x">AXE X (LATÉRAL)</span>
-                    <div class="axis-num" id="pos-x">0 cm</div>
+            <!-- Télémétrie et Filtre de Fusion -->
+            <div class="telemetry-grid">
+                <div class="t-item">
+                    <span class="t-label">Chronomètre</span>
+                    <span class="t-val" style="color:var(--warn);" id="timer-val">00:00.0</span>
                 </div>
-                <div class="axis-box">
-                    <span class="axis-tag tag-y">AXE Y (LONGITUDINAL)</span>
-                    <div class="axis-num" id="pos-y">0 cm</div>
+                <div class="t-item">
+                    <span class="t-label">Vitesse Inst.</span>
+                    <span class="t-val" id="spd-val">0.00 m/s</span>
                 </div>
-                <div class="axis-box">
-                    <span class="axis-tag tag-z">AXE Z (VERTICAL)</span>
-                    <div class="axis-num" id="pos-z">0 cm</div>
+                <div class="t-item">
+                    <span class="t-label">Trajet Cumulé</span>
+                    <span class="t-val" style="color:var(--primary);" id="path-val">0.0 cm</span>
+                </div>
+                <div class="t-item">
+                    <span class="t-label">Orientation 3D</span>
+                    <span class="t-val" id="tilt-val">R:0° | P:0° | Y:0°</span>
                 </div>
             </div>
 
             <!-- Boutons de Contrôle -->
-            <div class="btn-row" style="margin-top:16px;">
-                <button class="btn btn-start" id="btn-toggle">▶ TOP DÉPART</button>
-                <button class="btn" id="btn-reset">RÀZ</button>
-                <button class="btn btn-small" id="btn-zupt-mode" style="margin-left:auto;">FILTRE ZUPT: OUI</button>
-            </div>
-            <div style="font-family:'Share Tech Mono', monospace; font-size:10px; color:var(--label); margin-top:8px; opacity:0.75;">
-                Mode d'emploi : Cliquez sur DÉPART, déplacez le smartphone (geste ou trajet), puis cliquez sur STOP. Le filtre ZUPT remet la vitesse à 0 lors des arrêts pour couper la dérive.
-            </div>
-        </div>
-
-        <!-- GRILLE SECONDAIRE : PODOMÈTRE & ODOMÈTRE GPS -->
-        <div class="grid-2">
-
-            <!-- PODOMÈTRE -->
-            <div class="card secondary">
-                <div class="card-header">
-                    <div class="card-title">🚶 PODOMÈTRE (MARCHE)</div>
-                    <span class="status-badge active" id="pedometer-status">Actif</span>
-                </div>
-                <div class="main-display" id="step-dist-val" style="font-size:32px;">0.00 <span>m</span></div>
-                <div class="stats-grid" style="grid-template-columns:1fr 1fr; margin-bottom:8px;">
-                    <div class="stat-item">
-                        <span class="stat-label">Pas Détectés</span>
-                        <span class="stat-val accent" id="step-count">0 pas</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Cadence</span>
-                        <span class="stat-val" id="step-cadence">0 pas/min</span>
-                    </div>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="font-family:'Share Tech Mono', monospace; font-size:11px; color:var(--label);">
-                        Foulée : <button class="btn-small" id="btn-step-minus" style="padding:1px 5px;">-5cm</button>
-                        <strong style="color:#fff;" id="step-stride-val">70 cm</strong>
-                        <button class="btn-small" id="btn-step-plus" style="padding:1px 5px;">+5cm</button>
-                    </div>
-                    <button class="btn btn-small" id="btn-step-reset">RÀZ PAS</button>
-                </div>
+            <div class="btn-row">
+                <button class="btn btn-start" id="btn-toggle">▶ DÉPART TABLE (CALIBRER)</button>
+                <button class="btn" id="btn-reset">RESET ORIGINE (0,0,0)</button>
             </div>
 
-            <!-- ODOMÈTRE GPS -->
-            <div class="card secondary">
-                <div class="card-header">
-                    <div class="card-title">📡 ODOMÈTRE GPS (EXTÉRIEUR)</div>
-                    <span class="status-badge warn" id="gps-status">En attente</span>
-                </div>
-                <div class="main-display" id="gps-dist-val" style="font-size:32px;">0.0 <span>m</span></div>
-                <div class="stats-grid" style="grid-template-columns:1fr 1fr; margin-bottom:8px;">
-                    <div class="stat-item">
-                        <span class="stat-label">Points Validés</span>
-                        <span class="stat-val primary" id="gps-pts-count">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Précision GPS</span>
-                        <span class="stat-val" id="gps-acc">-- m</span>
-                    </div>
-                </div>
-                <div style="display:flex; justify-content:flex-end;">
-                    <button class="btn btn-small" id="btn-gps-reset">RÀZ GPS</button>
-                </div>
+            <div style="font-family:'Share Tech Mono', monospace; font-size:11px; color:var(--label); margin-top:14px; line-height:1.4; opacity:0.8;">
+                💡 <strong>Protocole d'essai :</strong><br>
+                1. Posez le téléphone à plat sur la table.<br>
+                2. Cliquez sur <strong>DÉPART TABLE</strong>.<br>
+                3. Levez le téléphone, faites le tour de la table, inclinez-le si besoin, puis reposer le téléphone <u>exactement au même endroit sur la table</u>.<br>
+                4. Observez si la valeur revient à <strong>0.0 cm</strong> grâce au filtre de projection spatiale et ZUPT.
             </div>
 
         </div>
@@ -502,385 +407,262 @@
 <script>
 {
     // ========================================================
-    // MOTEUR D'ODOMÉTRIE & DE FUSION DE CAPTEURS 3D
+    // ALGORITHME DE FUSION 3D ET RECHERCHE DU POINT ZÉRO
     // ========================================================
 
-    let trackingRunning = false;
-    let isCalibrating = false;
-    let useZuptFilter = true;
+    let tracking = false;
+    let calibrating = false;
 
     let startTime = 0;
-    let elapsedMs = 0;
-    let lastTimestamp = 0;
+    let lastTime = 0;
 
     let calibSamples = [];
-    let accelBias = { x: 0, y: 0, z: 0 };
-    let vel = { x: 0, y: 0, z: 0 }; // m/s
-    let pos = { x: 0, y: 0, z: 0 }; // mètres
-    let pathDistance = 0; // mètres
-    let maxSpeed = 0; // m/s
-    let restCounter = 0;
+    let bias = { x: 0, y: 0, z: 0 };
+    let vel = { x: 0, y: 0, z: 0 };  // m/s dans le repère monde
+    let pos = { x: 0, y: 0, z: 0 };  // m dans le repère monde
+    let totalPath = 0;               // m
+    let restCount = 0;
 
-    // Orientation absolue/relative
-    let orientation = { roll: 0, pitch: 0, yaw: 0 };
-    let gravEst = { x: 0, y: 0, z: 9.81 }; // Fallback filtre passe-bas si accélération linéaire non fournie
+    // Matrice de rotation 3D (Roll / Pitch / Yaw)
+    let orient = { roll: 0, pitch: 0, yaw: 0 };
+    let gravEst = { x: 0, y: 0, z: 9.81 }; // Estimation passe-bas si accélération linéaire non fournie par l'OS
 
-    // --- FORMATEURS DE TEXTE ---
-    const formatTime = (ms) => {
-        const totalSec = Math.floor(ms / 1000);
-        const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
-        const s = (totalSec % 60).toString().padStart(2, '0');
-        const tenths = Math.floor((ms % 1000) / 100);
-        return `${m}:${s}.${tenths}`;
+    // --- FORMATEURS ---
+    const fmtChrono = (ms) => {
+        const sec = Math.floor(ms / 1000);
+        const m = Math.floor(sec / 60).toString().padStart(2, '0');
+        const s = (sec % 60).toString().padStart(2, '0');
+        const t = Math.floor((ms % 1000) / 100);
+        return `${m}:${s}.${t}`;
     };
 
-    const formatDistHtml = (meters) => {
-        const cm = meters * 100;
-        if (Math.abs(cm) < 100) {
-            return `${cm.toFixed(1)} <span>cm</span>`;
-        } else if (Math.abs(meters) < 1000) {
-            return `${meters.toFixed(2)} <span>m</span>`;
-        } else {
-            return `${(meters / 1000).toFixed(3)} <span>km</span>`;
-        }
-    };
-
-    const formatDistStr = (meters) => {
+    const fmtCm = (meters) => {
         const cm = meters * 100;
         if (Math.abs(cm) < 100) {
             return `${cm.toFixed(1)} cm`;
         } else {
-            return `${meters.toFixed(2)} m`;
+            return `${(meters).toFixed(2)} m`;
         }
     };
 
-    // --- GESTIONNAIRE D'ORIENTATION (ORIENTATION & FUSION 3D) ---
+    // --- ORIENTATION & PROJECTION DANS LE REPÈRE MONDE (WORLD FRAME) ---
     const handleOrientation = (e) => {
         if (e.beta !== null && e.gamma !== null) {
-            orientation.pitch = e.beta;  // Inclinaison X
-            orientation.roll = e.gamma;   // Inclinaison Y
-            if (e.alpha !== null) orientation.yaw = e.alpha;
-            
-            const tiltEl = document.getElementById('odo-tilt');
-            if (tiltEl) tiltEl.innerText = `R:${Math.round(e.gamma)}° | P:${Math.round(e.beta)}°`;
+            orient.pitch = e.beta;  // Degrés
+            orient.roll = e.gamma;   // Degrés
+            if (e.alpha !== null) orient.yaw = e.alpha;
+
+            document.getElementById('tilt-val').innerText = 
+                `R:${Math.round(e.gamma)}° | P:${Math.round(e.beta)}° | Y:${Math.round(e.alpha || 0)}°`;
         }
     };
 
-    // --- CONTROLES INTÉGRATION INERTIELLE ---
-    const toggleTracking = () => {
-        if (!trackingRunning) {
-            // Lancement
-            trackingRunning = true;
-            isCalibrating = true;
+    // Transforme l'accéléromètre du smartphone dans le repère de la pièce (World Frame)
+    const rotateToWorldFrame = (ax, ay, az) => {
+        const r = (orient.roll || 0) * Math.PI / 180;
+        const p = (orient.pitch || 0) * Math.PI / 180;
+        const y = (orient.yaw || 0) * Math.PI / 180;
+
+        // Matrice de rotation Euler R_z * R_x * R_y
+        const cp = Math.cos(p), sp = Math.sin(p);
+        const cr = Math.cos(r), sr = Math.sin(r);
+        const cy = Math.cos(y), sy = Math.sin(y);
+
+        const worldX = (cy * cr) * ax + (cy * sr * sp - sy * cp) * ay + (cy * sr * cp + sy * sp) * az;
+        const worldY = (sy * cr) * ax + (sy * sr * sp + cy * cp) * ay + (sy * sr * cp - cy * sp) * az;
+        const worldZ = (-sr) * ax + (cr * sp) * ay + (cr * cp) * az;
+
+        return { x: worldX, y: worldY, z: worldZ };
+    };
+
+    // --- DÉMARRAGE / ARRÊT TEST ---
+    const toggleTest = () => {
+        if (!tracking) {
+            tracking = true;
+            calibrating = true;
             calibSamples = [];
             startTime = performance.now();
-            lastTimestamp = performance.now();
-            elapsedMs = 0;
+            lastTime = performance.now();
             vel = { x: 0, y: 0, z: 0 };
             pos = { x: 0, y: 0, z: 0 };
-            pathDistance = 0;
-            maxSpeed = 0;
-            restCounter = 0;
+            totalPath = 0;
+            restCount = 0;
 
             const btn = document.getElementById('btn-toggle');
-            btn.innerText = "⏹ STOP / FIN";
+            btn.innerText = "⏹ STOP (FIGER MESURE)";
             btn.className = "btn btn-stop";
 
             const badge = document.getElementById('odo-status');
-            badge.innerText = "Calibrage (0.4s)...";
+            badge.innerText = "Calibrage sur table (0.3s)...";
             badge.className = "status-badge warn";
         } else {
-            // Arrêt
-            trackingRunning = false;
-            isCalibrating = false;
+            tracking = false;
+            calibrating = false;
             vel = { x: 0, y: 0, z: 0 };
 
             const btn = document.getElementById('btn-toggle');
-            btn.innerText = "▶ NOUVEAU DÉPART";
+            btn.innerText = "▶ NOUVEAU DÉPART TABLE";
             btn.className = "btn btn-start";
 
             const badge = document.getElementById('odo-status');
-            badge.innerText = "Mesure terminée";
+            badge.innerText = "Mesure figée";
             badge.className = "status-badge active";
 
-            document.getElementById('odo-speed').innerText = "0.00 m/s";
+            document.getElementById('spd-val').innerText = "0.00 m/s";
         }
     };
 
-    const resetTracking = () => {
-        trackingRunning = false;
-        isCalibrating = false;
+    const resetOrigin = () => {
+        tracking = false;
+        calibrating = false;
         vel = { x: 0, y: 0, z: 0 };
         pos = { x: 0, y: 0, z: 0 };
-        pathDistance = 0;
-        maxSpeed = 0;
-        elapsedMs = 0;
+        totalPath = 0;
 
         const btn = document.getElementById('btn-toggle');
-        btn.innerText = "▶ TOP DÉPART";
+        btn.innerText = "▶ DÉPART TABLE (CALIBRER)";
         btn.className = "btn btn-start";
 
         const badge = document.getElementById('odo-status');
-        badge.innerText = "Prêt";
+        badge.innerText = "Sur la table (Origine)";
         badge.className = "status-badge";
 
-        document.getElementById('odo-dist-main').innerHTML = "0.0 <span>cm</span>";
-        document.getElementById('odo-timer').innerText = "00:00.0";
-        document.getElementById('odo-speed').innerText = "0.00 m/s";
-        document.getElementById('odo-speed-max').innerText = "0.00 m/s";
-        document.getElementById('odo-dist-direct').innerText = "0.0 cm";
-        document.getElementById('odo-dist-path').innerText = "0.0 cm";
-
-        document.getElementById('pos-x').innerText = "0 cm";
-        document.getElementById('pos-y').innerText = "0 cm";
-        document.getElementById('pos-z').innerText = "0 cm";
+        document.getElementById('dist-total').innerHTML = "0.0 <span>cm</span>";
+        document.getElementById('val-x').innerText = "0.0 cm";
+        document.getElementById('val-y').innerText = "0.0 cm";
+        document.getElementById('val-z').innerText = "0.0 cm";
+        document.getElementById('timer-val').innerText = "00:00.0";
+        document.getElementById('spd-val').innerText = "0.00 m/s";
+        document.getElementById('path-val').innerText = "0.0 cm";
     };
 
-    const toggleZuptMode = () => {
-        useZuptFilter = !useZuptFilter;
-        const btn = document.getElementById('btn-zupt-mode');
-        if (useZuptFilter) {
-            btn.innerText = "FILTRE ZUPT: OUI";
-            btn.style.color = "var(--accent)";
-        } else {
-            btn.innerText = "FILTRE ZUPT: NON (BRUT)";
-            btn.style.color = "var(--warn)";
-        }
-    };
-
-    // --- PODOMÈTRE STATE & LOGIC ---
-    let stepCount = 0;
-    let stepStrideCm = 70;
-    let stepArmed = false;
-    let lastStepTime = 0;
-    let stepSmoothNorm = 9.81;
-    let stepTimestamps = [];
-
-    const updatePedometerUI = () => {
-        const distM = stepCount * (stepStrideCm / 100);
-        const distEl = document.getElementById('step-dist-val');
-        if (distEl) {
-            if (distM < 1000) {
-                distEl.innerHTML = `${distM.toFixed(2)} <span>m</span>`;
-            } else {
-                distEl.innerHTML = `${(distM / 1000).toFixed(3)} <span>km</span>`;
-            }
-        }
-        document.getElementById('step-count').innerText = `${stepCount} pas`;
-    };
-
-    const resetPedometer = () => {
-        stepCount = 0;
-        stepTimestamps = [];
-        updatePedometerUI();
-        document.getElementById('step-cadence').innerText = "0 pas/min";
-    };
-
-    setInterval(() => {
-        const now = Date.now();
-        stepTimestamps = stepTimestamps.filter(t => (now - t) <= 10000);
-        const cadence = Math.round((stepTimestamps.length / 10) * 60);
-        document.getElementById('step-cadence').innerText = `${cadence} pas/min`;
-    }, 2000);
-
-    // --- ODOMÈTRE GPS STATE & LOGIC ---
-    let gpsTotalDist = 0;
-    let gpsLastCoords = null;
-    let gpsPointsCount = 0;
-
-    const calcHaversine = (lat1, lon1, lat2, lon2) => {
-        const R = 6371e3;
-        const p1 = lat1 * Math.PI / 180;
-        const p2 = lat2 * Math.PI / 180;
-        const dp = (lat2 - lat1) * Math.PI / 180;
-        const dl = (lon2 - lon1) * Math.PI / 180;
-        const a = Math.sin(dp / 2) * Math.sin(dp / 2) +
-                  Math.cos(p1) * Math.cos(p2) *
-                  Math.sin(dl / 2) * Math.sin(dl / 2);
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    };
-
-    const resetGpsOdo = () => {
-        gpsTotalDist = 0;
-        gpsLastCoords = null;
-        gpsPointsCount = 0;
-        document.getElementById('gps-dist-val').innerHTML = "0.0 <span>m</span>";
-        document.getElementById('gps-pts-count').innerText = "0";
-    };
-
-    // --- INITIALISATION DES CAPTEURS ---
+    // --- ENREGISTREMENT ET CALCUL EN CONTINU ---
     const startSensors = () => {
         document.getElementById('start-overlay').remove();
 
-        // 1. Abonnement Orientation
+        // 1. Orientation 3D
         if ('ondeviceorientationabsolute' in window) {
             window.addEventListener('deviceorientationabsolute', handleOrientation, true);
         } else if ('ondeviceorientation' in window) {
             window.addEventListener('deviceorientation', handleOrientation, true);
         }
 
-        // 2. Abonnement Mouvement (Accéléromètre & Gyroscope)
+        // 2. Mouvement & Accélération
         window.addEventListener('devicemotion', (e) => {
+            if (!tracking) return;
+
             const rawA = e.accelerationIncludingGravity || { x: 0, y: 0, z: 9.81 };
             
-            // --- A. PODOMÈTRE ---
-            const rawNorm = Math.sqrt(rawA.x * rawA.x + rawA.y * rawA.y + rawA.z * rawA.z);
-            stepSmoothNorm += (rawNorm - stepSmoothNorm) * 0.22;
-            if (stepSmoothNorm > 10.8 && !stepArmed) {
-                stepArmed = true;
-            } else if (stepSmoothNorm < 9.2 && stepArmed) {
-                const nowStep = Date.now();
-                if (nowStep - lastStepTime > 260) {
-                    stepCount++;
-                    lastStepTime = nowStep;
-                    stepTimestamps.push(nowStep);
-                    updatePedometerUI();
-                }
-                stepArmed = false;
+            // Accélération linéaire sans gravité
+            let lin = e.acceleration;
+            if (!lin || lin.x === null) {
+                gravEst.x = 0.88 * gravEst.x + 0.12 * rawA.x;
+                gravEst.y = 0.88 * gravEst.y + 0.12 * rawA.y;
+                gravEst.z = 0.88 * gravEst.z + 0.12 * rawA.z;
+                lin = { x: rawA.x - gravEst.x, y: rawA.y - gravEst.y, z: rawA.z - gravEst.z };
             }
 
-            // --- B. INTÉGRATION INERTIELLE 3D ---
-            if (trackingRunning) {
-                let lin = e.acceleration;
-                if (!lin || lin.x === null) {
-                    gravEst.x = 0.85 * gravEst.x + 0.15 * rawA.x;
-                    gravEst.y = 0.85 * gravEst.y + 0.15 * rawA.y;
-                    gravEst.z = 0.85 * gravEst.z + 0.15 * rawA.z;
-                    lin = { x: rawA.x - gravEst.x, y: rawA.y - gravEst.y, z: rawA.z - gravEst.z };
+            const now = performance.now();
+            let dt = (now - lastTime) / 1000;
+            lastTime = now;
+            if (dt <= 0 || dt > 0.1) dt = 0.016;
+
+            const elapsed = now - startTime;
+            document.getElementById('timer-val').innerText = fmtChrono(elapsed);
+
+            if (calibrating) {
+                calibSamples.push({ x: lin.x, y: lin.y, z: lin.z });
+                if (elapsed >= 350) {
+                    const n = calibSamples.length || 1;
+                    bias.x = calibSamples.reduce((s, c) => s + c.x, 0) / n;
+                    bias.y = calibSamples.reduce((s, c) => s + c.y, 0) / n;
+                    bias.z = calibSamples.reduce((s, c) => s + c.z, 0) / n;
+                    calibrating = false;
+
+                    const badge = document.getElementById('odo-status');
+                    badge.innerText = "En déplacement...";
+                    badge.className = "status-badge warn";
                 }
+            } else {
+                // Retrait du biais mesuré à l'arrêt sur table
+                let ax = lin.x - bias.x;
+                let ay = lin.y - bias.y;
+                let az = lin.z - bias.z;
 
-                const now = performance.now();
-                let dt = (now - lastTimestamp) / 1000;
-                lastTimestamp = now;
-                if (dt <= 0 || dt > 0.1) dt = 0.016;
+                // Deadband : suppression du micro-bruit blanc
+                if (Math.abs(ax) < 0.07) ax = 0;
+                if (Math.abs(ay) < 0.07) ay = 0;
+                if (Math.abs(az) < 0.07) az = 0;
 
-                elapsedMs = now - startTime;
-                document.getElementById('odo-timer').innerText = formatTime(elapsedMs);
+                // Projection des accélérations dans le repère fixe de la pièce (World Frame)
+                const worldA = rotateToWorldFrame(ax, ay, az);
 
-                if (isCalibrating) {
-                    calibSamples.push({ x: lin.x, y: lin.y, z: lin.z });
-                    if (elapsedMs >= 400) {
-                        const cnt = calibSamples.length || 1;
-                        accelBias.x = calibSamples.reduce((s, c) => s + c.x, 0) / cnt;
-                        accelBias.y = calibSamples.reduce((s, c) => s + c.y, 0) / cnt;
-                        accelBias.z = calibSamples.reduce((s, c) => s + c.z, 0) / cnt;
-                        isCalibrating = false;
-                        const badge = document.getElementById('odo-status');
-                        badge.innerText = "Enregistrement...";
-                        badge.className = "status-badge warn";
+                const aMag = Math.sqrt(worldA.x * worldA.x + worldA.y * worldA.y + worldA.z * worldA.z);
+                const badge = document.getElementById('odo-status');
+
+                // Filtre ZUPT : Détection d'atterrissage / repos sur table
+                if (aMag < 0.10) {
+                    restCount++;
+                    if (restCount > 6) { // ~120ms d'immobilité
+                        vel.x = 0; vel.y = 0; vel.z = 0;
+                        badge.innerText = "REPOS SUR TABLE (ZUPT)";
+                        badge.className = "status-badge active";
+
+                        // Recalage zéro si retour proche de l'origine (< 1.5 cm)
+                        const currentErr = Math.sqrt(pos.x*pos.x + pos.y*pos.y + pos.z*pos.z);
+                        if (currentErr < 0.015) {
+                            pos.x = 0; pos.y = 0; pos.z = 0;
+                        }
                     }
                 } else {
-                    let ax = lin.x - accelBias.x;
-                    let ay = lin.y - accelBias.y;
-                    let az = lin.z - accelBias.z;
+                    restCount = 0;
+                    vel.x += worldA.x * dt;
+                    vel.y += worldA.y * dt;
+                    vel.z += worldA.z * dt;
 
-                    if (useZuptFilter) {
-                        if (Math.abs(ax) < 0.08) ax = 0;
-                        if (Math.abs(ay) < 0.08) ay = 0;
-                        if (Math.abs(az) < 0.08) az = 0;
+                    // Amortissement de sécurité anti-emballement
+                    vel.x *= 0.985;
+                    vel.y *= 0.985;
+                    vel.z *= 0.985;
 
-                        const aMag = Math.sqrt(ax * ax + ay * ay + az * az);
-                        const badge = document.getElementById('odo-status');
-
-                        if (aMag < 0.12) {
-                            restCounter++;
-                            if (restCounter > 7) {
-                                vel.x = 0; vel.y = 0; vel.z = 0;
-                                badge.innerText = "ZUPT (Repos)";
-                                badge.className = "status-badge active";
-                            }
-                        } else {
-                            restCounter = 0;
-                            vel.x += ax * dt;
-                            vel.y += ay * dt;
-                            vel.z += az * dt;
-                            vel.x *= 0.988; vel.y *= 0.988; vel.z *= 0.988;
-                            badge.innerText = "En mouvement";
-                            badge.className = "status-badge warn";
-                        }
-                    } else {
-                        vel.x += ax * dt; vel.y += ay * dt; vel.z += az * dt;
-                        document.getElementById('odo-status').innerText = "Mode Brut";
-                    }
-
-                    pos.x += vel.x * dt;
-                    pos.y += vel.y * dt;
-                    pos.z += vel.z * dt;
-
-                    const curSpeed = Math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z);
-                    if (curSpeed > maxSpeed) maxSpeed = curSpeed;
-
-                    pathDistance += curSpeed * dt;
-                    const directDist = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
-
-                    document.getElementById('odo-dist-main').innerHTML = formatDistHtml(directDist);
-                    document.getElementById('odo-speed').innerText = `${curSpeed.toFixed(2)} m/s`;
-                    document.getElementById('odo-speed-max').innerText = `${maxSpeed.toFixed(2)} m/s`;
-                    document.getElementById('odo-dist-direct').innerText = formatDistStr(directDist);
-                    document.getElementById('odo-dist-path').innerText = formatDistStr(pathDistance);
-
-                    document.getElementById('pos-x').innerText = `${(pos.x * 100).toFixed(0)} cm`;
-                    document.getElementById('pos-y').innerText = `${(pos.y * 100).toFixed(0)} cm`;
-                    document.getElementById('pos-z').innerText = `${(pos.z * 100).toFixed(0)} cm`;
+                    badge.innerText = "En mouvement 3D";
+                    badge.className = "status-badge warn";
                 }
+
+                // Intégration de la position spatiale
+                pos.x += vel.x * dt;
+                pos.y += vel.y * dt;
+                pos.z += vel.z * dt;
+
+                const speedNorm = Math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z);
+                totalPath += speedNorm * dt;
+                const distFromOrigin = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
+
+                // Affichage direct
+                const distEl = document.getElementById('dist-total');
+                const cmVal = distFromOrigin * 100;
+                if (cmVal < 100) {
+                    distEl.innerHTML = `${cmVal.toFixed(1)} <span>cm</span>`;
+                } else {
+                    distEl.innerHTML = `${distFromOrigin.toFixed(2)} <span>m</span>`;
+                }
+
+                document.getElementById('val-x').innerText = fmtCm(pos.x);
+                document.getElementById('val-y').innerText = fmtCm(pos.y);
+                document.getElementById('val-z').innerText = fmtCm(pos.z);
+
+                document.getElementById('spd-val').innerText = `${speedNorm.toFixed(2)} m/s`;
+                document.getElementById('path-val').innerText = fmtCm(totalPath);
             }
         });
-
-        // 3. Geolocation GPS
-        navigator.geolocation.watchPosition(p => {
-            const statusBadge = document.getElementById('gps-status');
-            statusBadge.innerText = "Actif";
-            statusBadge.className = "status-badge active";
-
-            const acc = p.coords.accuracy || 999;
-            document.getElementById('gps-acc').innerText = `±${Math.round(acc)} m`;
-
-            if (acc <= 35) {
-                if (gpsLastCoords) {
-                    const d = calcHaversine(gpsLastCoords.lat, gpsLastCoords.lon, p.coords.latitude, p.coords.longitude);
-                    const minStep = Math.max(2.5, acc * 0.3);
-                    if (d >= minStep || (p.coords.speed && p.coords.speed > 0.5)) {
-                        gpsTotalDist += d;
-                        gpsPointsCount++;
-                        gpsLastCoords = { lat: p.coords.latitude, lon: p.coords.longitude };
-                    }
-                } else {
-                    gpsLastCoords = { lat: p.coords.latitude, lon: p.coords.longitude };
-                    gpsPointsCount++;
-                }
-
-                const gDistEl = document.getElementById('gps-dist-val');
-                if (gpsTotalDist < 1000) {
-                    gDistEl.innerHTML = `${gpsTotalDist.toFixed(1)} <span>m</span>`;
-                } else {
-                    gDistEl.innerHTML = `${(gpsTotalDist / 1000).toFixed(3)} <span>km</span>`;
-                }
-                document.getElementById('gps-pts-count').innerText = gpsPointsCount;
-            }
-        }, err => {
-            const statusBadge = document.getElementById('gps-status');
-            statusBadge.innerText = "Erreur / Refusé";
-            statusBadge.className = "status-badge error";
-        }, { enableHighAccuracy: true });
     };
 
-    // --- GESTION DES CLICS ---
+    // Events Clics
     document.addEventListener('click', (e) => {
         if (!e.target) return;
         const id = e.target.id;
-        if (id === 'btn-toggle') toggleTracking();
-        else if (id === 'btn-reset') resetTracking();
-        else if (id === 'btn-zupt-mode') toggleZuptMode();
-        else if (id === 'btn-step-minus') {
-            stepStrideCm = Math.max(30, stepStrideCm - 5);
-            document.getElementById('step-stride-val').innerText = `${stepStrideCm} cm`;
-            updatePedometerUI();
-        } else if (id === 'btn-step-plus') {
-            stepStrideCm = Math.min(140, stepStrideCm + 5);
-            document.getElementById('step-stride-val').innerText = `${stepStrideCm} cm`;
-            updatePedometerUI();
-        } else if (id === 'btn-step-reset') resetPedometer();
-        else if (id === 'btn-gps-reset') resetGpsOdo();
+        if (id === 'btn-toggle') toggleTest();
+        else if (id === 'btn-reset') resetOrigin();
     });
 
     // Device Permission iOS 13+
@@ -891,7 +673,7 @@
                 await DeviceMotionEvent.requestPermission();
             }
         } catch (err) {
-            console.warn("Demande d'autorisation :", err);
+            console.warn("Autorisations :", err);
         }
         startSensors();
     };
