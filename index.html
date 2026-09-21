@@ -476,6 +476,184 @@
             box-shadow: 0 0 8px var(--primary-glow);
         }
 
+        /* --- ODOMETRY & DISTANCE SECTION --- */
+        .odo-section {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .odo-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent);
+        }
+
+        .odo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+        }
+
+        .odo-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .odo-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+
+        @media(min-width: 768px) {
+            .odo-grid {
+                grid-template-columns: 1.2fr 1fr 1fr;
+            }
+        }
+
+        .odo-block {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .odo-block-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10.5px;
+            color: var(--text);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            letter-spacing: 0.5px;
+        }
+
+        .odo-val-main {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 26px;
+            font-weight: 900;
+            color: #fff;
+            line-height: 1.1;
+            margin: 6px 0 2px 0;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+
+        .odo-val-main span {
+            font-size: 13px;
+            font-weight: normal;
+            color: var(--label);
+            margin-left: 4px;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .odo-sub {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: var(--label);
+            line-height: 1.4;
+        }
+
+        .odo-btn-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+
+        .odo-btn {
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid var(--primary-glow);
+            color: var(--text);
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 600;
+            font-size: 12px;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .odo-btn:hover {
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .odo-btn.btn-accent {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .odo-btn.btn-accent:hover {
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .odo-config-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: var(--label);
+        }
+
+        .odo-config-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            padding: 2px 7px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: background 0.15s;
+        }
+
+        .odo-config-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .progress-bar-zupt {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 4px 0;
+        }
+
+        .progress-bar-zupt-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--warn);
+            transition: width 0.05s linear;
+        }
+
         /* --- START OVERLAY --- */
         #start-overlay {
             position: fixed;
@@ -583,6 +761,93 @@
             </div>
             <div class="compass-details" id="ui-tilt">
                 INCLINAISON: X: --° | Y: --°
+            </div>
+        </div>
+    </div>
+
+    <!-- ODOMÉTRIE & ESTIMATION DE DÉPLACEMENT -->
+    <div class="odo-section">
+        <div class="odo-header">
+            <div class="odo-title">
+                <span>⚡ ODOMÉTRIE & ESTIMATION DE DÉPLACEMENT</span>
+            </div>
+            <span class="status-badge active" id="odo-master-status">PRÊT</span>
+        </div>
+        <div class="odo-grid">
+            <!-- 1. RÈGLE INERTIELLE (ZUPT) -->
+            <div class="odo-block">
+                <div>
+                    <div class="odo-block-title">
+                        <span>RÈGLE INERTIELLE (GESTES COURTS)</span>
+                        <span class="status-badge" id="zupt-status-badge">Prêt</span>
+                    </div>
+                    <div class="odo-val-main" id="zupt-dist-val">0.0 <span>cm</span></div>
+                    <div class="progress-bar-zupt">
+                        <div class="progress-bar-zupt-fill" id="zupt-time-bar"></div>
+                    </div>
+                    <div class="odo-sub" id="zupt-details" style="margin-top:6px;">
+                        Vitesse est. : 0.00 m/s | Repos<br>
+                        Axes 3D : X: 0 | Y: 0 | Z: 0 cm
+                    </div>
+                </div>
+                <div>
+                    <div class="odo-btn-group">
+                        <button class="odo-btn btn-accent" id="btn-zupt-start">▶ MESURER GESTE (2.5s)</button>
+                        <button class="odo-btn" id="btn-zupt-reset">RÀZ</button>
+                    </div>
+                    <div class="odo-sub" style="font-size:10px; margin-top:5px; opacity:0.75;">
+                        Posez le téléphone, cliquez, bougez puis arrêtez-vous (correction auto de dérive ZUPT).
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. PODOMÈTRE MARCHE CONTINUE -->
+            <div class="odo-block">
+                <div>
+                    <div class="odo-block-title">
+                        <span>PODOMÈTRE (MARCHE CONTINUE)</span>
+                        <span class="status-badge active" id="pedometer-status">Actif</span>
+                    </div>
+                    <div class="odo-val-main" id="step-dist-val">0.00 <span>m</span></div>
+                    <div class="odo-sub" id="step-details">
+                        Pas détectés : <strong style="color:var(--accent);" id="step-count">0</strong> pas<br>
+                        Cadence : <span id="step-cadence">0</span> pas/min
+                    </div>
+                </div>
+                <div>
+                    <div class="odo-config-row" style="margin-bottom:6px;">
+                        <span>Enjambée :</span>
+                        <button class="odo-config-btn" id="btn-step-minus">-5cm</button>
+                        <strong style="color:#fff;" id="step-stride-val">70 cm</strong>
+                        <button class="odo-config-btn" id="btn-step-plus">+5cm</button>
+                    </div>
+                    <div class="odo-btn-group">
+                        <button class="odo-btn" id="btn-step-reset">RÀZ PAS</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. DISTANCE GPS CUMULÉE -->
+            <div class="odo-block">
+                <div>
+                    <div class="odo-block-title">
+                        <span>ODOMÈTRE GPS (EXTÉRIEUR)</span>
+                        <span class="status-badge warn" id="gps-odo-status">En attente</span>
+                    </div>
+                    <div class="odo-val-main" id="gps-dist-val">0.0 <span>m</span></div>
+                    <div class="odo-sub" id="gps-odo-details">
+                        Points pris en compte : <span id="gps-pts-count">0</span><br>
+                        Précision actuelle : <span id="gps-cur-acc">--</span> m
+                    </div>
+                </div>
+                <div>
+                    <div class="odo-btn-group">
+                        <button class="odo-btn" id="btn-gps-reset">RÀZ GPS</button>
+                    </div>
+                    <div class="odo-sub" style="font-size:10px; margin-top:5px; opacity:0.75;">
+                        Calcul par formule Haversine filtrée contre le bruit stationnaire.
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -865,6 +1130,124 @@
         }
     };
 
+    // ==========================================
+    // MODULE D'ODOMÉTRIE ET DE MESURE DE DISTANCE
+    // ==========================================
+
+    // --- 1. RÈGLE INERTIELLE (ZUPT) ---
+    let zuptState = 'idle'; // 'idle' | 'calibrating' | 'measuring' | 'done'
+    let zuptStartTime = 0;
+    const ZUPT_CALIB_MS = 500;
+    const ZUPT_MEASURE_MS = 2500;
+    let zuptCalibSamples = [];
+    let zuptBias = { x: 0, y: 0, z: 0 };
+    let zuptVel = { x: 0, y: 0, z: 0 };
+    let zuptPos = { x: 0, y: 0, z: 0 };
+    let zuptRestCount = 0;
+    let lastZuptTime = 0;
+    let gravEst = { x: 0, y: 0, z: 9.81 }; // Filtre pour séparer la gravité si non supporté nativement
+
+    const startZupt = () => {
+        zuptState = 'calibrating';
+        zuptStartTime = performance.now();
+        lastZuptTime = performance.now();
+        zuptCalibSamples = [];
+        zuptVel = { x: 0, y: 0, z: 0 };
+        zuptPos = { x: 0, y: 0, z: 0 };
+        zuptRestCount = 0;
+        const badge = document.getElementById('zupt-status-badge');
+        if (badge) {
+            badge.innerText = "Calibrage (0.5s)...";
+            badge.className = "status-badge warn";
+        }
+        const timeBar = document.getElementById('zupt-time-bar');
+        if (timeBar) timeBar.style.width = "0%";
+    };
+
+    const resetZupt = () => {
+        zuptState = 'idle';
+        zuptVel = { x: 0, y: 0, z: 0 };
+        zuptPos = { x: 0, y: 0, z: 0 };
+        zuptRestCount = 0;
+        const distEl = document.getElementById('zupt-dist-val');
+        if (distEl) distEl.innerHTML = "0.0 <span>cm</span>";
+        const detEl = document.getElementById('zupt-details');
+        if (detEl) detEl.innerHTML = "Vitesse est. : 0.00 m/s | Repos<br>Axes 3D : X: 0 | Y: 0 | Z: 0 cm";
+        const badge = document.getElementById('zupt-status-badge');
+        if (badge) {
+            badge.innerText = "Prêt";
+            badge.className = "status-badge";
+        }
+        const timeBar = document.getElementById('zupt-time-bar');
+        if (timeBar) timeBar.style.width = "0%";
+    };
+
+    // --- 2. PODOMÈTRE & MARCHE ---
+    let stepCount = 0;
+    let stepStrideCm = 70; // Longueur de pas en centimètres
+    let stepArmed = false;
+    let lastStepTime = 0;
+    let stepSmoothNorm = 9.81;
+    let stepTimestamps = [];
+
+    const updatePedometerUI = () => {
+        const distM = stepCount * (stepStrideCm / 100);
+        const distEl = document.getElementById('step-dist-val');
+        if (distEl) {
+            if (distM < 1000) {
+                distEl.innerHTML = `${distM.toFixed(2)} <span>m</span>`;
+            } else {
+                distEl.innerHTML = `${(distM / 1000).toFixed(3)} <span>km</span>`;
+            }
+        }
+        const cntEl = document.getElementById('step-count');
+        if (cntEl) cntEl.innerText = stepCount;
+    };
+
+    const resetPedometer = () => {
+        stepCount = 0;
+        stepTimestamps = [];
+        updatePedometerUI();
+        const cadEl = document.getElementById('step-cadence');
+        if (cadEl) cadEl.innerText = "0";
+    };
+
+    // Calcul de la cadence de marche (pas/min)
+    setInterval(() => {
+        const now = Date.now();
+        stepTimestamps = stepTimestamps.filter(t => (now - t) <= 10000);
+        const cadence = Math.round((stepTimestamps.length / 10) * 60);
+        const cadEl = document.getElementById('step-cadence');
+        if (cadEl) cadEl.innerText = cadence;
+    }, 2000);
+
+    // --- 3. ODOMÈTRE GPS (HAVERSINE) ---
+    let gpsTotalDist = 0;
+    let gpsLastCoords = null;
+    let gpsPointsCount = 0;
+
+    const calcHaversine = (lat1, lon1, lat2, lon2) => {
+        const R = 6371e3; // Rayon de la Terre en mètres
+        const p1 = lat1 * Math.PI / 180;
+        const p2 = lat2 * Math.PI / 180;
+        const dp = (lat2 - lat1) * Math.PI / 180;
+        const dl = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dp / 2) * Math.sin(dp / 2) +
+                  Math.cos(p1) * Math.cos(p2) *
+                  Math.sin(dl / 2) * Math.sin(dl / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+
+    const resetGpsOdo = () => {
+        gpsTotalDist = 0;
+        gpsLastCoords = null;
+        gpsPointsCount = 0;
+        const dEl = document.getElementById('gps-dist-val');
+        if (dEl) dEl.innerHTML = "0.0 <span>m</span>";
+        const ptsEl = document.getElementById('gps-pts-count');
+        if (ptsEl) ptsEl.innerText = "0";
+    };
+
     // Démarrage et souscription aux capteurs
     const start = async () => {
         document.getElementById('start-overlay').remove();
@@ -894,6 +1277,132 @@
             engines.accel.update(a.x, a.y, a.z);
             const r = e.rotationRate || { alpha: 0, beta: 0, gamma: 0 };
             engines.gyro.update(r.alpha, r.beta, r.gamma);
+
+            // --- TRAITEMENT PODOMÈTRE ---
+            const rawNorm = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+            stepSmoothNorm += (rawNorm - stepSmoothNorm) * 0.22;
+            if (stepSmoothNorm > 10.75 && !stepArmed) {
+                stepArmed = true;
+            } else if (stepSmoothNorm < 9.25 && stepArmed) {
+                const nowStep = Date.now();
+                if (nowStep - lastStepTime > 260) {
+                    stepCount++;
+                    lastStepTime = nowStep;
+                    stepTimestamps.push(nowStep);
+                    updatePedometerUI();
+                }
+                stepArmed = false;
+            }
+
+            // --- TRAITEMENT RÈGLE INERTIELLE (ZUPT) ---
+            let lin = e.acceleration;
+            if (!lin || lin.x === null) {
+                // Fallback : extraction de l'accélération linéaire par soustraction passe-bas de gravité
+                gravEst.x = 0.85 * gravEst.x + 0.15 * a.x;
+                gravEst.y = 0.85 * gravEst.y + 0.15 * a.y;
+                gravEst.z = 0.85 * gravEst.z + 0.15 * a.z;
+                lin = { x: a.x - gravEst.x, y: a.y - gravEst.y, z: a.z - gravEst.z };
+            }
+
+            const nowZupt = performance.now();
+
+            if (zuptState === 'calibrating') {
+                zuptCalibSamples.push({ x: lin.x, y: lin.y, z: lin.z });
+                const elapsed = nowZupt - zuptStartTime;
+                const pct = Math.min((elapsed / ZUPT_CALIB_MS) * 100, 100);
+                const bar = document.getElementById('zupt-time-bar');
+                if (bar) bar.style.width = pct + '%';
+
+                if (elapsed >= ZUPT_CALIB_MS) {
+                    const cnt = zuptCalibSamples.length || 1;
+                    zuptBias.x = zuptCalibSamples.reduce((s, c) => s + c.x, 0) / cnt;
+                    zuptBias.y = zuptCalibSamples.reduce((s, c) => s + c.y, 0) / cnt;
+                    zuptBias.z = zuptCalibSamples.reduce((s, c) => s + c.z, 0) / cnt;
+                    zuptState = 'measuring';
+                    zuptStartTime = performance.now();
+                    lastZuptTime = performance.now();
+                    const badge = document.getElementById('zupt-status-badge');
+                    if (badge) {
+                        badge.innerText = "BOUGEZ !";
+                        badge.className = "status-badge warn";
+                    }
+                }
+            } else if (zuptState === 'measuring') {
+                let dt = (nowZupt - lastZuptTime) / 1000;
+                lastZuptTime = nowZupt;
+                if (dt <= 0 || dt > 0.1) dt = 0.016;
+
+                // Retrait du biais mesuré lors de la calibration
+                let ax = lin.x - zuptBias.x;
+                let ay = lin.y - zuptBias.y;
+                let az = lin.z - zuptBias.z;
+
+                // Deadband filter : supprime le bruit blanc
+                if (Math.abs(ax) < 0.08) ax = 0;
+                if (Math.abs(ay) < 0.08) ay = 0;
+                if (Math.abs(az) < 0.08) az = 0;
+
+                const aMag = Math.sqrt(ax * ax + ay * ay + az * az);
+                const badge = document.getElementById('zupt-status-badge');
+
+                // ZUPT (Zero-Velocity Update) : Détection de phase d'arrêt
+                if (aMag < 0.12) {
+                    zuptRestCount++;
+                    if (zuptRestCount > 8) {
+                        // Arrêt détecté : on verrouille la vitesse à zéro pour stopper toute dérive quadratique
+                        zuptVel.x = 0;
+                        zuptVel.y = 0;
+                        zuptVel.z = 0;
+                        if (badge) {
+                            badge.innerText = "ZUPT (Arrêt)";
+                            badge.className = "status-badge active";
+                        }
+                    }
+                } else {
+                    zuptRestCount = 0;
+                    zuptVel.x += ax * dt;
+                    zuptVel.y += ay * dt;
+                    zuptVel.z += az * dt;
+                    // Léger frottement numérique anti-emballement
+                    zuptVel.x *= 0.985;
+                    zuptVel.y *= 0.985;
+                    zuptVel.z *= 0.985;
+                    if (badge) {
+                        badge.innerText = "En mouvement";
+                        badge.className = "status-badge warn";
+                    }
+                }
+
+                // Intégration de la position
+                zuptPos.x += zuptVel.x * dt;
+                zuptPos.y += zuptVel.y * dt;
+                zuptPos.z += zuptVel.z * dt;
+
+                const dist3D_cm = Math.sqrt(zuptPos.x * zuptPos.x + zuptPos.y * zuptPos.y + zuptPos.z * zuptPos.z) * 100;
+                const curSpd = Math.sqrt(zuptVel.x * zuptVel.x + zuptVel.y * zuptVel.y + zuptVel.z * zuptVel.z);
+
+                const distEl = document.getElementById('zupt-dist-val');
+                if (distEl) distEl.innerHTML = `${dist3D_cm.toFixed(1)} <span>cm</span>`;
+
+                const detEl = document.getElementById('zupt-details');
+                if (detEl) {
+                    detEl.innerHTML = `Vitesse est. : ${curSpd.toFixed(2)} m/s | ${badge ? badge.innerText : ''}<br>Axes 3D : X: ${(zuptPos.x * 100).toFixed(0)} | Y: ${(zuptPos.y * 100).toFixed(0)} | Z: ${(zuptPos.z * 100).toFixed(0)} cm`;
+                }
+
+                const elapsed = nowZupt - zuptStartTime;
+                const pct = Math.min((elapsed / ZUPT_MEASURE_MS) * 100, 100);
+                const bar = document.getElementById('zupt-time-bar');
+                if (bar) bar.style.width = pct + '%';
+
+                if (elapsed >= ZUPT_MEASURE_MS) {
+                    zuptState = 'done';
+                    zuptVel = { x: 0, y: 0, z: 0 };
+                    if (badge) {
+                        badge.innerText = "Mesure finie";
+                        badge.className = "status-badge active";
+                    }
+                }
+            }
         });
 
         // Timeout d'absence d'événements de mouvement
@@ -947,10 +1456,51 @@
             
             document.getElementById('gps-alt').innerText = Math.round(p.coords.altitude || 0);
             document.getElementById('gps-spd').innerText = Math.round((p.coords.speed || 0) * 3.6);
+
+            // --- ODOMÉTRIE GPS (HAVERSINE) ---
+            const acc = p.coords.accuracy || 999;
+            const elCurAcc = document.getElementById('gps-cur-acc');
+            if (elCurAcc) elCurAcc.innerText = `±${Math.round(acc)}`;
+
+            if (acc <= 35) {
+                const odoBadge = document.getElementById('gps-odo-status');
+                if (odoBadge) {
+                    odoBadge.innerText = "Actif";
+                    odoBadge.className = "status-badge active";
+                }
+                if (gpsLastCoords) {
+                    const d = calcHaversine(gpsLastCoords.lat, gpsLastCoords.lon, p.coords.latitude, p.coords.longitude);
+                    const minStep = Math.max(2.5, acc * 0.3);
+                    if (d >= minStep || (p.coords.speed && p.coords.speed > 0.5)) {
+                        gpsTotalDist += d;
+                        gpsPointsCount++;
+                        gpsLastCoords = { lat: p.coords.latitude, lon: p.coords.longitude };
+                    }
+                } else {
+                    gpsLastCoords = { lat: p.coords.latitude, lon: p.coords.longitude };
+                    gpsPointsCount++;
+                }
+
+                const gDistEl = document.getElementById('gps-dist-val');
+                if (gDistEl) {
+                    if (gpsTotalDist < 1000) {
+                        gDistEl.innerHTML = `${gpsTotalDist.toFixed(1)} <span>m</span>`;
+                    } else {
+                        gDistEl.innerHTML = `${(gpsTotalDist / 1000).toFixed(3)} <span>km</span>`;
+                    }
+                }
+                const ptsEl = document.getElementById('gps-pts-count');
+                if (ptsEl) ptsEl.innerText = gpsPointsCount;
+            }
         }, (err) => {
             updateSensorStatus('gps_pos', 'Refusé / Erreur', 'error');
             updateSensorStatus('gps_data', 'Refusé / Erreur', 'error');
             document.getElementById('gps_pos-text').innerText = `Erreur de localisation: ${err.message}`;
+            const odoBadge = document.getElementById('gps-odo-status');
+            if (odoBadge) {
+                odoBadge.innerText = "Erreur";
+                odoBadge.className = "status-badge error";
+            }
         }, { enableHighAccuracy: true });
 
         // 5. Réseau (Ping, Type de connexion)
@@ -1063,10 +1613,30 @@
         }
     };
 
-    // Liaison du bouton Lux
+    // Liaison des boutons d'interaction (Lux, Odométrie ZUPT, Podomètre, GPS)
     document.addEventListener('click', (e) => {
-        if (e.target && e.target.id === 'btn-lux') {
+        if (!e.target) return;
+        const id = e.target.id;
+        if (id === 'btn-lux') {
             initLux();
+        } else if (id === 'btn-zupt-start') {
+            startZupt();
+        } else if (id === 'btn-zupt-reset') {
+            resetZupt();
+        } else if (id === 'btn-step-minus') {
+            stepStrideCm = Math.max(30, stepStrideCm - 5);
+            const el = document.getElementById('step-stride-val');
+            if (el) el.innerText = `${stepStrideCm} cm`;
+            updatePedometerUI();
+        } else if (id === 'btn-step-plus') {
+            stepStrideCm = Math.min(140, stepStrideCm + 5);
+            const el = document.getElementById('step-stride-val');
+            if (el) el.innerText = `${stepStrideCm} cm`;
+            updatePedometerUI();
+        } else if (id === 'btn-step-reset') {
+            resetPedometer();
+        } else if (id === 'btn-gps-reset') {
+            resetGpsOdo();
         }
     });
 
