@@ -362,7 +362,7 @@
         <div class="card">
             <div class="card-header">
                 <div class="card-title">📐 VECTEUR DE DÉPLACEMENT NET & IMPULSIONS (+ / -)</div>
-                <span class="status-badge active" id="odo-status">Enregistrement continu</span>
+                <span class="status-badge active" id="odo-status">Immobile sur table</span>
             </div>
 
             <!-- Grand Affichage du Vecteur Ecart de Position Total -->
@@ -378,7 +378,7 @@
                     <div class="axis-header-row">
                         <span class="axis-title ax-x">AXE X (LATÉRAL)</span>
                     </div>
-                    <div class="axis-pos-main" id="val-x">0.0 cm</div>
+                    <div class="axis-pos-main" id="val-x">+0.0 cm</div>
                     <div class="accel-split-box">
                         <div class="accel-row">
                             <span>Impulsion D (+v) :</span>
@@ -396,7 +396,7 @@
                     <div class="axis-header-row">
                         <span class="axis-title ax-y">AXE Y (LONGITUDINAL)</span>
                     </div>
-                    <div class="axis-pos-main" id="val-y">0.0 cm</div>
+                    <div class="axis-pos-main" id="val-y">+0.0 cm</div>
                     <div class="accel-split-box">
                         <div class="accel-row">
                             <span>Impulsion Av (+v) :</span>
@@ -414,7 +414,7 @@
                     <div class="axis-header-row">
                         <span class="axis-title ax-z">AXE Z (VERTICAL)</span>
                     </div>
-                    <div class="axis-pos-main" id="val-z">0.0 cm</div>
+                    <div class="axis-pos-main" id="val-z">+0.0 cm</div>
                     <div class="accel-split-box">
                         <div class="accel-row">
                             <span>Impulsion Haut (+v) :</span>
@@ -454,10 +454,9 @@
             </div>
 
             <div style="font-family:'Share Tech Mono', monospace; font-size:11px; color:var(--label); margin-top:14px; line-height:1.4; opacity:0.8;">
-                💡 <strong>Fonctionnement sans amortissement ni seuil parasite :</strong><br>
-                1. Poser le smartphone à plat et appuyer sur <strong>RÀZ ORIGINE</strong>.<br>
-                2. Déplacer le téléphone le long du PC (Aller $\rightarrow$ Retour).<br>
-                3. Les impulsions cumulées ($\int a^+ dt$ et $\int a^- dt$ en m/s) sont mesurées sans amputer les petits freinages.
+                💡 <strong>Verrouillage Immobilité (ZÉRO DRIFT AU REPOS) :</strong><br>
+                Tant que le téléphone est posé sans bouger sur la table, la position est strictement verrouillée à 0.0 cm.<br>
+                Dès que vous le déplacez, le mouvement s'intègre en direct.
             </div>
 
         </div>
@@ -467,12 +466,13 @@
 <script>
 {
     // ========================================================
-    // ALGORITHME DE MESURE CONTINUE - INTÉGRATION SANS AMORTISSEMENT PARASITE
+    // ALGORITHME VERROUILLAGE IMMOBILITÉ ET INTEGRATION MOVEMENT
     // ========================================================
 
     let startTime = 0;
     let lastTime = 0;
     let isCalibrating = false;
+    let isStationary = true; // Verrouillé à l'arrêt au départ
     let calibSamples = [];
 
     // Biais d'accélération mesuré sur table
@@ -546,6 +546,7 @@
     // --- REZERO (RESET ORIGINE) ---
     const resetOrigin = () => {
         isCalibrating = true;
+        isStationary = true;
         calibSamples = [];
         startTime = performance.now();
         lastTime = performance.now();
@@ -562,7 +563,7 @@
         };
 
         const badge = document.getElementById('odo-status');
-        badge.innerText = "Re-Calibrage sur table (0.3s)...";
+        badge.innerText = "Re-Calibrage sur table (0.35s)...";
         badge.className = "status-badge warn";
 
         document.getElementById('dist-total').innerHTML = "0.0 <span>cm</span>";
@@ -587,6 +588,8 @@
         document.getElementById('start-overlay').remove();
         startTime = performance.now();
         lastTime = performance.now();
+        isCalibrating = true;
+        isStationary = true;
 
         // 1. Orientation 3D
         if ('ondeviceorientationabsolute' in window) {
@@ -618,15 +621,16 @@
 
             if (isCalibrating) {
                 calibSamples.push({ x: lin.x, y: lin.y, z: lin.z });
-                if (calibSamples.length >= 15 || (now - startTime) >= 300) {
+                if (calibSamples.length >= 18 || (now - startTime) >= 350) {
                     const n = calibSamples.length || 1;
                     bias.x = calibSamples.reduce((s, c) => s + c.x, 0) / n;
                     bias.y = calibSamples.reduce((s, c) => s + c.y, 0) / n;
                     bias.z = calibSamples.reduce((s, c) => s + c.z, 0) / n;
                     isCalibrating = false;
+                    isStationary = true;
 
                     const badge = document.getElementById('odo-status');
-                    badge.innerText = "Enregistrement continu";
+                    badge.innerText = "Immobile sur table (0.0 cm)";
                     badge.className = "status-badge active";
                 }
             } else {
@@ -635,53 +639,54 @@
                 let ay = lin.y - bias.y;
                 let az = lin.z - bias.z;
 
-                // PAS DE DEADBAND ARTIFICIEL QUI TRONQUE LE FREINAGE : Seuil minimal ultra-bas
-                if (Math.abs(ax) < 0.015) ax = 0;
-                if (Math.abs(ay) < 0.015) ay = 0;
-                if (Math.abs(az) < 0.015) az = 0;
-
                 // Projection spatiale 3D dans le repère fixe de la pièce
                 const worldA = rotateToWorldFrame(ax, ay, az);
-
-                // --- ACCUMULATION INTÉGRALE DES IMPULSIONS POSITIVES ET NÉGATIVES (∫ a dt en m/s) ---
-                if (worldA.x > 0) impulseSplit.xPos += worldA.x * dt;
-                else impulseSplit.xNeg += worldA.x * dt;
-
-                if (worldA.y > 0) impulseSplit.yPos += worldA.y * dt;
-                else impulseSplit.yNeg += worldA.y * dt;
-
-                if (worldA.z > 0) impulseSplit.zPos += worldA.z * dt;
-                else impulseSplit.zNeg += worldA.z * dt;
-
                 const aMag = Math.sqrt(worldA.x * worldA.x + worldA.y * worldA.y + worldA.z * worldA.z);
                 const badge = document.getElementById('odo-status');
 
-                // Intégration pure sans amortissement parasite (Pas de vel *= 0.988)
-                vel.x += worldA.x * dt;
-                vel.y += worldA.y * dt;
-                vel.z += worldA.z * dt;
-
-                // ZUPT uniquement lors de l'arrêt complet prolongé sur la table
-                if (aMag < 0.05) {
+                // DÉTECTEUR D'IMMOBILITÉ VS MOUVEMENT ACTIF
+                if (aMag < 0.055) {
                     restCount++;
-                    if (restCount > 10) { // ~200ms d'immobilité complète
+                    if (restCount > 5) { // ~100ms sous le seuil d'immobilité
+                        isStationary = true;
                         vel.x = 0; vel.y = 0; vel.z = 0;
-                        badge.innerText = "REPOS SUR TABLE (ZUPT)";
+                        badge.innerText = "Immobile sur table (0.0 cm)";
                         badge.className = "status-badge active";
                     }
                 } else {
                     restCount = 0;
+                    isStationary = false;
                     badge.innerText = "Mouvement continu 3D";
                     badge.className = "status-badge warn";
                 }
 
-                // Intégration du vecteur position
-                pos.x += vel.x * dt;
-                pos.y += vel.y * dt;
-                pos.z += vel.z * dt;
+                // INTÉGRATION UNIQUEMENT EN EN MOUVEMENT (Bloque les 15cm à l'arrêt sur 30s)
+                if (!isStationary) {
+                    // Impulsions
+                    if (worldA.x > 0) impulseSplit.xPos += worldA.x * dt;
+                    else impulseSplit.xNeg += worldA.x * dt;
+
+                    if (worldA.y > 0) impulseSplit.yPos += worldA.y * dt;
+                    else impulseSplit.yNeg += worldA.y * dt;
+
+                    if (worldA.z > 0) impulseSplit.zPos += worldA.z * dt;
+                    else impulseSplit.zNeg += worldA.z * dt;
+
+                    vel.x += worldA.x * dt;
+                    vel.y += worldA.y * dt;
+                    vel.z += worldA.z * dt;
+
+                    pos.x += vel.x * dt;
+                    pos.y += vel.y * dt;
+                    pos.z += vel.z * dt;
+
+                    const speedNorm = Math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z);
+                    totalPath += speedNorm * dt;
+                } else {
+                    vel.x = 0; vel.y = 0; vel.z = 0;
+                }
 
                 const speedNorm = Math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z);
-                totalPath += speedNorm * dt;
                 const distFromOrigin = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
 
                 // --- MISE À JOUR DE L'AFFICHAGE EN TEMPS RÉEL ---
